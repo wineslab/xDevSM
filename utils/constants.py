@@ -1,0 +1,21 @@
+class Values:
+    EVENT_TRIGGERS = (0,1000)
+    A1_POLICY_QUERY = 20012
+    HELLOWORLD_POLICY_ID = 2
+    RIC_HEALTH_CHECK_REQ = 100
+    RIC_HEALTH_CHECK_RESP = 101
+    A1_POLICY_REQ = 20010
+    A1_POLICY_RESP = 20011
+    RIC_ALARM_UPDATE = 110
+    RIC_ERROR_INDICATION = 10030
+    RIC_INDICATION = 12050
+    RIC_CONTROL_REQ = 12040
+    RIC_CONTROL_ACK = 12041
+    RIC_CONTROL_FAILURE = 12042
+    ACTION_TYPE = "report"
+    GENERAL_PATH = "http://service-{}-{}-http.ricplt:{}" # change this with the ip address if not found
+    PLT_NAMESPACE = "ricplt"
+    SUBSCRIPTION_SERVICE = "submgr"
+    SUBSCRIPTION_PORT = "8088"
+    E2MGR_SERVICE = "e2mgr"
+    E2MGR_PORT = "3800"
