@@ -20,7 +20,7 @@ from utils.constants import Values
 import utils.utility as utility
 
 
-#sm framework
+# sm framework
 import sm_framework.py_oran.kpm.function_definition_builder as function_definition_builder
 import sm_framework.py_oran.kpm.KpmIndicationHdr as KpmIndicationHdr
 import sm_framework.py_oran.kpm.KpmIndicationMsg as KpmIndicationMsg
@@ -49,7 +49,6 @@ class XappKpmFrame(RMRXapp):
         self.__ind_msg_callback = None
         self.__sub_failed_callback = None
 
-        # trick to get the own handler with defined 
         self.server.handler.add_handler(self.server.handler, "GET", "config", "/ric/v1/config", self.__config_get_handler)
         self.server.handler.add_handler(self.server.handler, "GET", "healthAlive", "/ric/v1/health/alive", self.__healthy_get_alive_handler)
         self.server.handler.add_handler(self.server.handler, "GET", "healthReady", "/ric/v1/health/ready", self.__healthyGetReadyHandler)
@@ -89,7 +88,6 @@ class XappKpmFrame(RMRXapp):
     
     def _post_init(self, xapp):
         xapp.logger.info("xApp Initialized")
-        # Here we should run the app or start the logic (first subscription and then run)
 
     def __default_handler(self, xapp, summary, sbuf):
 
