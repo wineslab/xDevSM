@@ -5,7 +5,7 @@ from sm_framework.lib.library_wrapper import wrapper, kpm_lib, wrap_functions
 from mdclogpy import Logger
 
 
-measurements_ids  = ['RRU.PrbTotUl', 
+measurements_ids  = ['RRU.PrbTotUl', 'DRB.RlcSduDelayDl'
                     'DRB.UEThpDl', 'RRC.ConnEstabAtt.mo-VideoCall', 'RRC.ConnEstabSucc.mo-VoiceCall', 'RRU.PrbAvailDl', 
                     'DRB.RlcSduTransmittedVolumeUL_Filter', 'DRB.PdcpSduVolumeUL', 'RRC.ConnMean', 'DRB.PerDataVolumeDLDist.Bin', 'RRU.PrbUsedUl',
                     'DRB.RlcSduTransmittedVolumeDL_Filter', 'RRC.timingAdvance', 
