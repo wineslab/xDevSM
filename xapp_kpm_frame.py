@@ -25,6 +25,7 @@ import sm_framework.py_oran.kpm.function_definition_builder as function_definiti
 import sm_framework.py_oran.kpm.KpmIndicationHdr as KpmIndicationHdr
 import sm_framework.py_oran.kpm.KpmIndicationMsg as KpmIndicationMsg
 import sm_framework.py_oran.kpm.KpmFunctionDef as KpmFunctionDef
+from sm_framework.py_oran.kpm.enums import ue_id_e2sm_e
 
 
 class XappKpmFrame(RMRXapp):
@@ -182,7 +183,7 @@ class XappKpmFrame(RMRXapp):
             ))
             decoded_ind_msg.print_meas_info(xapp.logger)
         else:
-            self.__ind_msg_callback(decoded_ind_hdr, decoded_ind_msg)
+            self.__ind_msg_callback(decoded_ind_hdr, decoded_ind_msg, summary['meid'])
 
     def _remove_sub_id(self, sub_id: str):
         to_remove = None
@@ -290,6 +291,24 @@ class XappKpmFrame(RMRXapp):
         # ByteArray.free(ctypes.byref(encoded_action_def))
 
         return status
+
+    def get_ue_id(self, ue_meas_report: KpmIndicationMsg.ue_id_e2sm_t) -> int:
+        if ue_meas_report.type.value == ue_id_e2sm_e.GNB_UE_ID_E2SM:
+            gnb_mono = ue_meas_report.union.gnb
+            if gnb_mono.ran_ue_id: 
+                return gnb_mono.ran_ue_id.contents.value
+        elif ue_meas_report.type.value == ue_id_e2sm_e.GNB_DU_UE_ID_E2SM:
+            gnb_du = ue_meas_report.union.gnb_du
+            if gnb_du.ran_ue_id:
+                return gnb_du.ran_ue_id.contents.value
+        elif ue_meas_report.type.value == ue_id_e2sm_e.GNB_CU_UP_UE_ID_E2SM:
+            gnb_cu = ue_meas_report.union.gnb_cu_up
+            if gnb_cu.ran_ue_id:
+                return gnb_cu.ran_ue_id.contents.value
+        else:
+            self.logger.error("format not supported ({})".format(ue_meas_report.type.value))
+    
+
 
     def get_subscription_id(self, inventory_name: str):
         """
