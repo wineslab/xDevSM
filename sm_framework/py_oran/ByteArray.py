@@ -19,4 +19,9 @@ class ByteArray(ctypes.Structure):
         buf_to_numpy = np.ctypeslib.as_array(self.buf, shape = (self.len,))
         return np.array_equal(buf_to_numpy, np_array)
 
+    def to_bytes(self):
+        if not self.buf or self.len == 0:
+            return b""  # Return an empty byte string if there's no data
+        return bytes(ctypes.cast(self.buf, ctypes.POINTER(ctypes.c_uint8 * self.len)).contents)
+
 free = wrap_functions(wrapper, 'free_byte_array', None, [ByteArray])       

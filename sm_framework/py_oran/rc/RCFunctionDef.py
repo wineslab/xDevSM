@@ -33,17 +33,28 @@ class ran_param_type_t(ctypes.Structure):
     ]
 
 # Mapping ran_param_def_t with a union
-class ran_param_def_t(ctypes.Structure):
-    class _ran_param_union(ctypes.Union):
-        _fields_ = [
-            ("lst", ctypes.POINTER(ran_param_type_t)),    # Pointer to ran_param_type_t (LIST)
-            ("strct", ctypes.POINTER(ran_param_type_t))   # Pointer to ran_param_type_t (STRUCTURE)
-        ]
-
+class _ran_param_union(ctypes.Union):
     _fields_ = [
+        ("lst", ctypes.POINTER(ran_param_type_t)),    # Pointer to ran_param_type_t (LIST)
+        ("strct", ctypes.POINTER(ran_param_type_t))   # Pointer to ran_param_type_t (STRUCTURE)
+    ]
+    
+# Managing forward declaration
+ran_param_def_t._fields_ = [
         ("type", ran_parameter_def_type_e),            # RAN Parameter Type (INTEGER, ran_parameter_def_type_e)
         ("value", _ran_param_union)        # Union with lst or strct
     ]
+# class ran_param_def_t(ctypes.Structure):
+#     class _ran_param_union(ctypes.Union):
+#         _fields_ = [
+#             ("lst", ctypes.POINTER(ran_param_type_t)),    # Pointer to ran_param_type_t (LIST)
+#             ("strct", ctypes.POINTER(ran_param_type_t))   # Pointer to ran_param_type_t (STRUCTURE)
+#         ]
+
+#     _fields_ = [
+#         ("type", ran_parameter_def_type_e),            # RAN Parameter Type (INTEGER, ran_parameter_def_type_e)
+#         ("value", _ran_param_union)        # Union with lst or strct
+#     ]
 
 
 class seq_ev_trg_style_t(ctypes.Structure):
@@ -213,7 +224,7 @@ class RCFuncDef(ctypes.Structure):
         ("policy", ctypes.POINTER(ran_func_def_policy_t))       # Pointer to RAN Function Definition for POLICY (Optional)
     ]
 
-    def get_available_rc_functions(self):
+    def print_rc_functions(self):
         if self.ev_trig:
             print("[Event Trigger]")
             # get ev_trig object
