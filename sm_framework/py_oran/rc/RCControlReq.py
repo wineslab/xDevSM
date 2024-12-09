@@ -3,7 +3,7 @@ import numpy as np
 from sm_framework.py_oran.rc import RCControlHdr as hdr
 from sm_framework.py_oran.rc import RCControlMsg as ctrl
 from sm_framework.py_oran.rc import RCFunctionDef as funcdef
-from sm_framework.py_oran import ByteArray
+from sm_framework.py_oran.ByteArray import ByteArray
 from sm_framework.py_oran.rc.enums import *
 
 from sm_framework.lib.library_wrapper import rc_lib, wrap_functions
@@ -204,7 +204,7 @@ class RCControlReqWrapper():
             
 
 
-    def gen_rc_msg(self, ran_func_dsc: funcdef.RCFuncDef):
+    def gen_rc_msg(self, ran_func_dsc: funcdef.RCFuncDef, ue_id: hdr.ue_id_e2sm_t=None):
         # FIXME Add other parameters
         if not ran_func_dsc.ctrl:
             # TODO Add error message
@@ -232,7 +232,10 @@ class RCControlReqWrapper():
             self.control_req.hdr.union.frmt_1.ric_style_type = ric_style_types[style_decoded]
 
             # TODO How do we get ue_id?
-            # self.control_req.hdr.frmt_1.ue_id = 
+            if not ue_id is None:
+                self.control_req.hdr.union.frmt_1.ue_id = ue_id
+            else:
+                print("Not managed...")
 
             self.control_req.msg.format = style.msg
 

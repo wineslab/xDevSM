@@ -1,7 +1,7 @@
 import ctypes
-from sm_framework.py_oran import ByteArray
+from sm_framework.py_oran.ByteArray import ByteArray
 from sm_framework.py_oran.rc.enums import * 
-    
+
 # Modify ran_parameter_value_t to include the union
 class ran_parameter_value_t(ctypes.Structure):
     class ran_parameter_value_union(ctypes.Union):

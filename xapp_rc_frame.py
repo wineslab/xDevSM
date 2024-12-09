@@ -3,9 +3,11 @@ import signal
 import time
 import requests
 import json
+import sys
 
 # osc xappframe
 from ricxappframe.xapp_frame import RMRXapp, rmr
+from ricxappframe.e2ap.asn1 import ControlRequestMsg
 from mdclogpy import Level
 import ricxappframe.xapp_rest as ricrest
 
@@ -13,7 +15,9 @@ import ricxappframe.xapp_rest as ricrest
 from utils.constants import Values
 
 # sm framework
-import sm_framework.py_oran.rc.RCFunctionDef as RCFunctionDef
+import sm_framework.py_oran.rc.RCFunctionDef as funcdef
+import sm_framework.py_oran.rc.RCControlReq as ctrlReq
+import sm_framework.py_oran.rc.RCControlHdr as ctrlhdr
 
 class XappRCFrame(RMRXapp):
 
@@ -23,7 +27,7 @@ class XappRCFrame(RMRXapp):
         self.port = port
         self.xapp_name = xapp_name
 
-        self.rc_function_def_wrapper = RCFunctionDef.RCFuncDefWrapper(hex="") 
+        self.rc_function_def_wrapper = funcdef.RCFuncDefWrapper(hex="") 
 
         # HTTP Server: create the thread HTTP server and set the uri handler callbacks
         self.server = ricrest.ThreadedHTTPServer(self.address, self.port)
@@ -79,10 +83,6 @@ class XappRCFrame(RMRXapp):
         
         xapp.rmr_free(sbuf)
 
-    def _default_entrypoint(self):
-        while True:
-            time.sleep(1)
-
     def get_ran_info(self, e2node):
         """
         Get E2Node related info. Used to get RAN function description
@@ -101,7 +101,7 @@ class XappRCFrame(RMRXapp):
         response = requests.get(uri_e2_mgr)
         return response.json()
     
-    def get_ran_function_description(self, json_ran_info, ran_func_id=3) -> RCFunctionDef.RCFuncDef:
+    def get_ran_function_description(self, json_ran_info, ran_func_id=3) -> funcdef.RCFuncDef:
         """
         Get decoded ran function description
         Parameters:
@@ -129,12 +129,50 @@ class XappRCFrame(RMRXapp):
         func_def_obj = self.rc_function_def_wrapper.decode()
         return func_def_obj
 
-    def send_control_request(self):
-        # TODO
-        pass
+    def send_control_request(self, e2_node_id, func_def: funcdef.RCFuncDef, ue_id: ctrlhdr.ue_id_e2sm_t=None, call_process_id: bytes=b""):
+        # TODO Add function parameters
+        # Creating request
+        
+        # Service model encoding
+        wrapper = ctrlReq.RCControlReqWrapper()
+        wrapper.gen_rc_msg(ran_func_dsc=func_def, ue_id=ue_id)
+        wrapper.print_ctrl_req()
+        
+        rc_ctrl_req_enc = wrapper.encode()
+        
+        # E2AP encoding
+        rc_ctrl_rec_msg = ControlRequestMsg()
+        size, payload = rc_ctrl_rec_msg.encode(call_process_id=call_process_id,
+                                               requestor_id=1,
+                                               control_ack_request=0, # Missing
+                                               request_sequence_number=0, # Missing
+                                               control_header=rc_ctrl_req_enc.hdr.to_bytes(), 
+                                               control_message=rc_ctrl_req_enc.msg.to_bytes(), 
+                                               ran_function_id=3) # Missing
+
+        self.logger.info("Sending RCControlRequest Message: {} ({})".format(size, payload))
+        sbuf = rmr.rmr_alloc_msg(vctx=self._mrc, size=len(payload), mtype=Values.RIC_CONTROL_REQ)
+        rmr.set_payload_and_length(payload,sbuf)
+        rmr.generate_and_set_transaction_id(sbuf)
+        sbuf.contents.state = 0
+        sbuf.contents.mtype = Values.RIC_CONTROL_REQ
+        sbuf.contents.sub_id = -1
+        self.logger.info("E2 node id: {}".format(e2_node_id.encode("utf8")))
+        rmr.rmr_set_meid(sbuf, e2_node_id.encode("utf8"))
+        rmr.rmr_send_msg(self._mrc, sbuf)
+        if sbuf.contents.state == 0:
+            self.logger.info("freeing buffer")
+            self.rmr_free(sbuf)
+            
+        
+        # self.rmr_send(payload=payload, mtype=Values.RIC_CONTROL_REQ)
+        
     
     def terminating_xapp(self, signum, frame):
+        self.logger.info("Received termination signal")
         self.xapp_shutdown()
+        self.logger.info("Bye!")
+        sys.exit()
 
 
     def logic():
