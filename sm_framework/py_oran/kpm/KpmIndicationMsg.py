@@ -383,7 +383,7 @@ class KpmIndMsg(ctypes.Structure):
 
     _fields_ = [
         ("type", format_ind_msg_e),  # format_ind_msg_e
-        ("data", Union) 
+        ("data", Union)
     ]
 
     def print_gran_period_ms(self):
@@ -407,9 +407,9 @@ class KpmIndMsg(ctypes.Structure):
                     print(f"gran_period_ms is not set for UE {i}.")
         else:
             print("Unknown format type.")
-    
+
     def print_meas_info(self, logger: Logger):
-        
+
         # print("~~~~~~~~~~ DATA FROM {} ~~~~~~~~~~".format(gnb_inventory_name))
 
         if self.type.value == format_ind_msg_e.FORMAT_1_INDICATION_MESSAGE:
@@ -424,7 +424,7 @@ class KpmIndMsg(ctypes.Structure):
 
                     elif self.data.frm_1.meas_info_lst[k].meas_type.type.value == meas_type_enum.ID_MEAS_TYPE:
                         self.log_values_id(logger, self.data.frm_1.meas_info_lst[k].meas_type.value.id, meas_record_lst_el)
-                    
+
                     else:
                         logger.info("Not supported meas type {}".format(self.data.frm_1.meas_info_lst[k].meas_type.type.value))
 
@@ -434,6 +434,8 @@ class KpmIndMsg(ctypes.Structure):
             logger.debug("received indication message format 3")
             for i in range(self.data.frm_3.ue_meas_report_lst_len):
                 logger.debug("printing info regarding ue[{}]".format(i))
+                self.log_ue_id_info(logger, self.data.frm_3.meas_report_per_ue[i].ue_meas_report_lst)
+
                 ind_msg_format_1 = self.data.frm_3.meas_report_per_ue[i].ind_msg_format_1
 
                 for j in range(ind_msg_format_1.meas_data_lst_len):
@@ -458,7 +460,7 @@ class KpmIndMsg(ctypes.Structure):
                     logger.info("{}: {}".format(value,meas_record.union.real_val))
                     printed = True
 
-        
+
         if not printed:
             logger.info("Measurement Id not yet supported")
 
@@ -472,9 +474,57 @@ class KpmIndMsg(ctypes.Structure):
         
         if not printed:
             logger.info("Measurement Id not yet supported")
-    
+
     def log_values_id(self, logger: Logger, byte_array, meas_record: meas_record_lst_t):
         logger.info("received id value - not supported yet: {}".format(byte_array))
+
+    def log_ue_id_info(self, logger: Logger, ue_info: ue_id_e2sm_t):
+        logger.info("ue id info type: {}".format(ue_info.type.value))
+        if ue_info.type.value == ue_id_e2sm_e.GNB_UE_ID_E2SM:
+            logger.info("-- GNB_UE_ID_E2SM")
+            gnb_mono = ue_info.union.gnb
+            logger.info("---- amf_ue_ngap_id: {}".format(gnb_mono.amf_ue_ngap_id))
+            logger.info("---- guami")
+            logger.info("------ amf_region_id: {}".format(gnb_mono.guami.amf_region_id))
+            logger.info("------ amf_set_id: {}".format(gnb_mono.guami.amf_set_id))
+            logger.info("------ amf_ptr: {}".format(gnb_mono.guami.amf_ptr))
+            logger.info("------ plmn_id")
+            logger.info("-------- mcc: {}".format(gnb_mono.guami.plmn_id.mcc))
+            logger.info("-------- mnc: {}".format(gnb_mono.guami.plmn_id.mnc))
+            logger.info("-------- mnc_digit_len: {}".format(gnb_mono.guami.plmn_id.mnc_digit_len))
+            logger.info("----gnb_cu_ue_f1ap_lst_len: {}".format(gnb_mono.gnb_cu_ue_f1ap_lst_len))
+            for i in range(0, gnb_mono.gnb_cu_ue_f1ap_lst_len):
+                logger.info("------gnb_cu_ue_f1ap_lst: {}".format(gnb_mono.gnb_cu_ue_f1ap_lst[i]))
+            
+            logger.info("---- gnb_cu_ue_f1ap_lst_len: {}".format(gnb_mono.gnb_cu_cp_ue_e1ap_lst_len))
+            for i in range(0, gnb_mono.gnb_cu_cp_ue_e1ap_lst_len):
+                logger.info("------ gnb_cu_ue_f1ap_lst: {}".format(gnb_mono.gnb_cu_cp_ue_e1ap_lst[i]))
+            
+            if gnb_mono.ran_ue_id: 
+                logger.info("---- ran_ue_id: {}".format(gnb_mono.ran_ue_id.contents.value))
+            
+            if gnb_mono.ng_ran_node_ue_xnap_id: 
+                logger.info("---- ng_ran_node_ue_xnap_id: {}".format(gnb_mono.ng_ran_node_ue_xnap_id.contents.value))
+            
+            logger.info("---- global_gnb_id")
+            if gnb_mono.global_gnb_id: 
+                logger.info("todo add gnb print")
+                logger.info("------ type: {}".format(gnb_mono.global_gnb_id.contents.type.value))
+                logger.info("------ plmn_id")
+                logger.info("-------- mcc: {}".format(gnb_mono.global_gnb_id.contents.plmn_id.mcc))
+                logger.info("-------- mnc: {}".format(gnb_mono.global_gnb_id.contents.plmn_id.mnc))
+                logger.info("-------- mnc_digit_len: {}".format(gnb_mono.global_gnb_id.contents.plmn_id.mnc_digit_len))
+            
+            if gnb_mono.global_ng_ran_node_id:
+                logger.info("---- global_ng_ran_node_id")
+                logger.info("add logging")
+
+            
+            
+            
+                
+            
+
 
 class KpmIndMsgWrapper():
     # Manager for decoding and memory deallocation

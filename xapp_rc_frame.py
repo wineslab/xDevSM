@@ -4,6 +4,7 @@ import time
 import requests
 import json
 import sys
+import ctypes
 
 # osc xappframe
 from ricxappframe.xapp_frame import RMRXapp, rmr
@@ -131,24 +132,35 @@ class XappRCFrame(RMRXapp):
 
     def send_control_request(self, e2_node_id, func_def: funcdef.RCFuncDef, ue_id: ctrlhdr.ue_id_e2sm_t=None, call_process_id: bytes=b""):
         # TODO Add function parameters
+        # TODO where should we take call_process_id information
         # Creating request
         
         # Service model encoding
         wrapper = ctrlReq.RCControlReqWrapper()
+        if ue_id is None:
+            self.logger.info("[warn] using mock ue_id")
+            ue_id = self.get_mock_ue_id()
+
         wrapper.gen_rc_msg(ran_func_dsc=func_def, ue_id=ue_id)
         wrapper.print_ctrl_req()
         
         rc_ctrl_req_enc = wrapper.encode()
         
+        hdr_byte_array = rc_ctrl_req_enc.hdr_encoded.to_bytes()
+        ctrl_msg_byte_array = rc_ctrl_req_enc.msg_encoded.to_bytes()
+
+        self.logger.info("hdr encoded: {}".format(hdr_byte_array))
+        self.logger.info("ctrl encoded: {}".format(ctrl_msg_byte_array))
+
         # E2AP encoding
         rc_ctrl_rec_msg = ControlRequestMsg()
         size, payload = rc_ctrl_rec_msg.encode(call_process_id=call_process_id,
                                                requestor_id=1,
                                                control_ack_request=0, # Missing
                                                request_sequence_number=0, # Missing
-                                               control_header=rc_ctrl_req_enc.hdr.to_bytes(), 
-                                               control_message=rc_ctrl_req_enc.msg.to_bytes(), 
-                                               ran_function_id=3) # Missing
+                                               control_header=hdr_byte_array,
+                                               control_message=ctrl_msg_byte_array,
+                                               ran_function_id=3)
 
         self.logger.info("Sending RCControlRequest Message: {} ({})".format(size, payload))
         sbuf = rmr.rmr_alloc_msg(vctx=self._mrc, size=len(payload), mtype=Values.RIC_CONTROL_REQ)
@@ -159,10 +171,11 @@ class XappRCFrame(RMRXapp):
         sbuf.contents.sub_id = -1
         self.logger.info("E2 node id: {}".format(e2_node_id.encode("utf8")))
         rmr.rmr_set_meid(sbuf, e2_node_id.encode("utf8"))
-        rmr.rmr_send_msg(self._mrc, sbuf)
-        if sbuf.contents.state == 0:
-            self.logger.info("freeing buffer")
-            self.rmr_free(sbuf)
+        sbuf = rmr.rmr_send_msg(self._mrc, sbuf)
+        self.logger.info("Message Sent")
+        # if sbuf.contents.state == 0:
+        #     self.logger.info("freeing buffer")
+        #     self.rmr_free(sbuf)
             
         
         # self.rmr_send(payload=payload, mtype=Values.RIC_CONTROL_REQ)
@@ -173,6 +186,35 @@ class XappRCFrame(RMRXapp):
         self.xapp_shutdown()
         self.logger.info("Bye!")
         sys.exit()
+
+    def get_mock_ue_id(self) -> ctrlhdr.ue_id_e2sm_t:
+        ue_id = ctrlhdr.ue_id_e2sm_t()
+        ue_id.type = ctrlhdr.ue_id_e2sm_e.GNB_UE_ID_E2SM
+        
+        gnb_mono = ctrlhdr.gnb_e2sm_t()
+        gnb_mono.amf_ue_ngap_id = 9
+        
+        # guami
+        plmn_id = ctrlhdr.e2sm_plmn_t()
+        plmn_id.mcc = 1
+        plmn_id.mnc = 1
+        plmn_id.mnc_digit_len = 2 
+        guami = ctrlhdr.guami_t()
+        guami.plmn_id = plmn_id
+        guami.amf_region_id = 1
+        guami.amf_set_id = 1
+        guami.amf_ptr = 1
+        gnb_mono.guami = guami
+
+        gnb_mono.gnb_cu_ue_f1ap_lst_len = 0
+        gnb_mono.gnb_cu_cp_ue_e1ap_lst_len = 0
+        gnb_mono.ran_ue_id = ctypes.pointer(ctypes.c_ulong(1))
+
+        # gnb_pointer = ctypes.pointer(gnb_mono)
+
+        ue_id.union.gnb = gnb_mono
+
+        return ue_id
 
 
     def logic():

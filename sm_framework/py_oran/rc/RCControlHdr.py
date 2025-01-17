@@ -143,18 +143,18 @@ class enb_e2sm_t(ctypes.Structure):
 class ue_id_e2sm_t(ctypes.Structure):
     class Union(ctypes.Union):
         _fields_ = [
-            ("gnb", ctypes.POINTER(gnb_e2sm_t)),
-            ("gnb_du", ctypes.POINTER(gnb_du_e2sm_t)),
-            ("gnb_cu_up", ctypes.POINTER(gnb_cu_up_e2sm_t)),
-            ("ng_enb", ctypes.POINTER(ng_enb_e2sm_t)),
-            ("ng_enb_du", ctypes.POINTER(ng_enb_du_e2sm_t)),
-            ("en_gnb", ctypes.POINTER(en_gnb_e2sm_t)),
-            ("enb", ctypes.POINTER(enb_e2sm_t)),
+            ("gnb", gnb_e2sm_t),  # Direct structure, no POINTER
+            ("gnb_du", gnb_du_e2sm_t),
+            ("gnb_cu_up", gnb_cu_up_e2sm_t),
+            ("ng_enb", ng_enb_e2sm_t),
+            ("ng_enb_du", ng_enb_du_e2sm_t),
+            ("en_gnb", en_gnb_e2sm_t),
+            ("enb", enb_e2sm_t),
         ]
 
     _fields_ = [
-        ("type", ue_id_e2sm_e),  # Type field (enum or struct)
-        ("union", Union)   # Union field for all the structures
+        ("type", ue_id_e2sm_e),  # Enum or integer type
+        ("union", Union),  # Directly embedded union
     ]
 
 class e2sm_rc_ctrl_hdr_frmt_1_t(ctypes.Structure):

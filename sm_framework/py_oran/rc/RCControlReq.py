@@ -67,7 +67,7 @@ class RCControlReqEncoded(ctypes.Structure):
 # TODO add wrapper for encode/decode procedure and memory management
 class RCControlReqWrapper():
     def __init__(self):
-        self.control_req: RCControlReq = None # This should be built by using methods defined in this class
+        self.control_req: RCControlReq =  RCControlReq() # This should be built by using methods defined in this class
         self.free_hdr = wrap_functions(rc_lib, 'free_e2sm_rc_ctrl_hdr', None, [ctypes.POINTER(hdr.RCControlHdr)])
         self.free_msg = wrap_functions(rc_lib, 'free_e2sm_rc_ctrl_msg', None, [ctypes.POINTER(ctrl.RCControlMsg)])
         self.encode_hdr = wrap_functions(rc_lib, 'rc_enc_ctrl_hdr_asn', ByteArray, [ctypes.POINTER(hdr.RCControlHdr)])
@@ -82,10 +82,10 @@ class RCControlReqWrapper():
         if self.control_req is None:
             return
 
-        ctrl_req_enc = RCControlReq()
+        ctrl_req_enc = RCControlReqEncoded()
         
         ctrl_req_enc.hdr_encoded = self.encode_hdr(self.control_req.hdr)
-        ctrl_req_enc.msg_econded = self.encode_msg(self.control_req.msg)
+        ctrl_req_enc.msg_encoded = self.encode_msg(self.control_req.msg)
 
         return ctrl_req_enc
 
@@ -126,12 +126,15 @@ class RCControlReqWrapper():
         for i in range(0, self.control_req.msg.union.frmt_1.sz_ran_param):
             print("Parameter: {}".format(qos_ran_parameter_id_to_name[self.control_req.msg.union.frmt_1.ran_param[i].ran_param_id]))
             print("Val type: {}".format(self.control_req.msg.union.frmt_1.ran_param[i].ran_param_val.type.value))
+            
             if qos_ran_parameter_id_to_name[self.control_req.msg.union.frmt_1.ran_param[i].ran_param_id] == "DRB ID":
                 if self.control_req.msg.union.frmt_1.ran_param[i].ran_param_val.type.value == ran_parameter_val_type_e.ELEMENT_KEY_FLAG_TRUE_RAN_PARAMETER_VAL_TYPE:
                     print("Flag true drb change: {}".format(self.control_req.msg.union.frmt_1.ran_param[i].ran_param_val.union.flag_true.contents.union.int_ran))
+            
             if qos_ran_parameter_id_to_name[self.control_req.msg.union.frmt_1.ran_param[i].ran_param_id] == "List of QoS Flows to be modified in DRB":
                 if self.control_req.msg.union.frmt_1.ran_param[i].ran_param_val.type.value == ran_parameter_val_type_e.LIST_RAN_PARAMETER_VAL_TYPE:
                     lst = self.control_req.msg.union.frmt_1.ran_param[i].ran_param_val.union.lst.contents
+                    
                     for j in range(0, lst.sz_lst_ran_param):
                         print("Element in the list: {}".format(lst.lst_ran_param[j].ran_param_struct.sz_ran_param_struct))
                         for k in range(0, lst.lst_ran_param[j].ran_param_struct.sz_ran_param_struct):
@@ -209,9 +212,12 @@ class RCControlReqWrapper():
         if not ran_func_dsc.ctrl:
             # TODO Add error message
             return
-        self.control_req = RCControlReq()
+        # self.control_req = RCControlReq()
         ctrl_descr = ran_func_dsc.ctrl.contents 
 
+        self.control_req.hdr = hdr.RCControlHdr()
+        self.control_req.msg = ctrl.RCControlMsg()
+        
         for i in range(0, ctrl_descr.sz_seq_ctrl_style):
             style = ctrl_descr.seq_ctrl_style[i]
             
@@ -224,18 +230,19 @@ class RCControlReqWrapper():
                 return
 
             self.control_req.hdr.format = style.hdr
-
+            
             if self.control_req.hdr.format.value !=e2sm_rc_ctrl_hdr_e.FORMAT_1_E2SM_RC_CTRL_HDR:
                 print("Not supported header format")
                 return
-            
+            self.control_req.hdr.union.frmt_1 = hdr.e2sm_rc_ctrl_hdr_frmt_1_t()
+
             self.control_req.hdr.union.frmt_1.ric_style_type = ric_style_types[style_decoded]
 
             # TODO How do we get ue_id?
             if not ue_id is None:
                 self.control_req.hdr.union.frmt_1.ue_id = ue_id
             else:
-                print("Not managed...")
+                print("UE ID not provided skipping (this could generate an error during encoding)...")
 
             self.control_req.msg.format = style.msg
 
@@ -271,9 +278,14 @@ class RCControlReqWrapper():
                 self.qos_flow_mapping_config_handler(seq_ctrl_act[j], seq_ctrl_act[j].sz_seq_assoc_ran_param)
 
 
-    def __del__(self):
-        self.free_hdr(self.control_req.hdr)
-        self.free_msg(self.control_req.msg)
+    # def __del__(self):
+        # print("tempting free")
+        # if self.control_req.hdr:
+        #     print("tempting freeing header")
+        #     self.free_hdr(self.control_req.hdr)
+        # if self.control_req.msg:
+        #     print("tempting freeing msg")
+        #     self.free_msg(self.control_req.msg)
     
 
 
