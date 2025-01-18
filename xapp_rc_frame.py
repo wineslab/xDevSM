@@ -23,7 +23,6 @@ import sm_framework.py_oran.rc.RCControlHdr as ctrlhdr
 class XappRCFrame(RMRXapp):
 
     def __init__(self, xapp_name, address, port, entrypoint=None):
-        print("to be defined")
         self.address = address
         self.port = port
         self.xapp_name = xapp_name
@@ -74,7 +73,9 @@ class XappRCFrame(RMRXapp):
     def __default_handler(self, xapp, summary, sbuf):
 
         xapp.logger.info("received: {}".format(summary))
-
+        if summary[rmr.RMR_MS_MSG_TYPE] == Values.RIC_CONTROL_ACK:
+            xapp.logger.info("Received control ack")
+            self.logger.info("Received control ack")
         # if summary[rmr.RMR_MS_MSG_TYPE] == Values.RIC_INDICATION:
         #     self._handle_indication(xapp, summary) # FIXME maybe better with a private method 
         # elif summary[rmr.RMR_MS_MSG_TYPE] == Values.RIC_ERROR_INDICATION:
@@ -156,7 +157,7 @@ class XappRCFrame(RMRXapp):
         rc_ctrl_rec_msg = ControlRequestMsg()
         size, payload = rc_ctrl_rec_msg.encode(call_process_id=call_process_id,
                                                requestor_id=1,
-                                               control_ack_request=0, # Missing
+                                               control_ack_request=1, # Missing
                                                request_sequence_number=0, # Missing
                                                control_header=hdr_byte_array,
                                                control_message=ctrl_msg_byte_array,
