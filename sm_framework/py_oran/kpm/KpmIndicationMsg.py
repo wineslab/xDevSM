@@ -3,6 +3,7 @@ from sm_framework.py_oran.ByteArray import ByteArray
 from sm_framework.py_oran.kpm.enums import *
 from sm_framework.lib.library_wrapper import wrapper, kpm_lib, wrap_functions
 from mdclogpy import Logger
+import numpy as np
 
 
 measurements_ids  = ['RRU.PrbTotUl', 'DRB.RlcSduDelayDl'
@@ -449,20 +450,13 @@ class KpmIndMsg(ctypes.Structure):
                         else:
                             logger.info("Not supported meas type {}".format(ind_msg_format_1.meas_info_lst[k].meas_type.type.value))
 
-    def log_values(self, logger: Logger, byte_array: ByteArray, meas_record: meas_record_lst_t, type=meas_value_e.INTEGER_MEAS_VALUE):
-        printed = False
-        for value in measurements_ids:
-            if byte_array.cmp_str_ba(value):
-                if type == meas_value_e.INTEGER_MEAS_VALUE:
-                    logger.info("{}: {}".format(value,meas_record.union.int_val))
-                    printed = True
-                elif type == meas_value_e.REAL_MEAS_VALUE:
-                    logger.info("{}: {}".format(value,meas_record.union.real_val))
-                    printed = True
-
-
-        if not printed:
-            logger.info("Measurement Id not yet supported")
+    def log_values(self, logger: Logger, meas_type: ByteArray, meas_record: meas_record_lst_t, type=meas_value_e.INTEGER_MEAS_VALUE):
+        meas_type_bs = bytes(np.ctypeslib.as_array(meas_type.buf, shape = (meas_type.len,)))
+        meas_type_str = meas_type_bs.decode('utf-8')
+        if type == meas_value_e.INTEGER_MEAS_VALUE:
+            logger.info("{}:{}".format(meas_type_str, meas_record.union.int_val))
+        elif type == meas_value_e.REAL_MEAS_VALUE:
+            logger.info("{}:{}".format(meas_type_str, meas_record.union.real_val))
 
     def log_values_real(self, logger: Logger, byte_array: ByteArray, meas_record: meas_record_lst_t):
         printed = False
