@@ -410,24 +410,9 @@ class KpmIndMsg(ctypes.Structure):
             print("Unknown format type.")
 
     def print_meas_info(self, logger: Logger):
-
-        # print("~~~~~~~~~~ DATA FROM {} ~~~~~~~~~~".format(gnb_inventory_name))
-
         if self.type.value == format_ind_msg_e.FORMAT_1_INDICATION_MESSAGE:
             logger.debug("received indication message format 1")
-            for i in range(self.data.frm_1.meas_data_lst_len):
-                logger.debug("printing info regarding ue[{}]".format(i))
-                meas_data_lst = self.data.frm_1.meas_data_lst
-                for k in range(meas_data_lst[i].meas_record_len):
-                    meas_record_lst_el = meas_data_lst[i].meas_record_lst[k]
-                    if self.data.frm_1.meas_info_lst[k].meas_type.type.value == meas_type_enum.NAME_MEAS_TYPE:
-                        self.log_values(logger, self.data.frm_1.meas_info_lst[k].meas_type.value.name, meas_record_lst_el, type=meas_record_lst_el.value.value)
-
-                    elif self.data.frm_1.meas_info_lst[k].meas_type.type.value == meas_type_enum.ID_MEAS_TYPE:
-                        self.log_values_id(logger, self.data.frm_1.meas_info_lst[k].meas_type.value.id, meas_record_lst_el)
-
-                    else:
-                        logger.info("Not supported meas type {}".format(self.data.frm_1.meas_info_lst[k].meas_type.type.value))
+            self.print_meas_info_frmt_1(logger=logger, frmt_1=self.data.frm_1)
 
         elif self.type.value == format_ind_msg_e.FORMAT_2_INDICATION_MESSAGE:
             logger.debug("received indication message format 2 - not supported yet")
@@ -438,17 +423,54 @@ class KpmIndMsg(ctypes.Structure):
                 self.log_ue_id_info(logger, self.data.frm_3.meas_report_per_ue[i].ue_meas_report_lst)
 
                 ind_msg_format_1 = self.data.frm_3.meas_report_per_ue[i].ind_msg_format_1
+                self.print_meas_info_frmt_1(logger=logger, frmt_1=ind_msg_format_1)
+                # for j in range(ind_msg_format_1.meas_data_lst_len):
+                #     meas_data_lst = ind_msg_format_1.meas_data_lst
+                #     # logger.debug("~~~~~~~~~~ MEAS INFO data: {} ~~~~~~~~~~".format(j))
+                #     # print(meas_data_lst[j].meas_record_len)
+                #     for k in range(meas_data_lst[j].meas_record_len):
+                #         meas_record_lst_el = meas_data_lst[j].meas_record_lst[k]
+                #         if ind_msg_format_1.meas_info_lst[k].meas_type.type.value == meas_type_enum.NAME_MEAS_TYPE:
+                #             self.log_values(logger, ind_msg_format_1.meas_info_lst[k].meas_type.value.name, meas_record_lst_el, type=meas_record_lst_el.value.value)
+                #         else:
+                #             logger.info("Not supported meas type {}".format(ind_msg_format_1.meas_info_lst[k].meas_type.type.value))
 
-                for j in range(ind_msg_format_1.meas_data_lst_len):
-                    meas_data_lst = ind_msg_format_1.meas_data_lst
-                    # logger.debug("~~~~~~~~~~ MEAS INFO data: {} ~~~~~~~~~~".format(j))
-                    # print(meas_data_lst[j].meas_record_len)
-                    for k in range(meas_data_lst[j].meas_record_len):
-                        meas_record_lst_el = meas_data_lst[j].meas_record_lst[k]
-                        if ind_msg_format_1.meas_info_lst[k].meas_type.type.value == meas_type_enum.NAME_MEAS_TYPE:
-                            self.log_values(logger, ind_msg_format_1.meas_info_lst[k].meas_type.value.name, meas_record_lst_el, type=meas_record_lst_el.value.value)
-                        else:
-                            logger.info("Not supported meas type {}".format(ind_msg_format_1.meas_info_lst[k].meas_type.type.value))
+    def print_meas_info_frmt_1(self, logger: Logger, frmt_1: kpm_ind_msg_format_1_t):
+        for i in range(frmt_1.meas_data_lst_len):
+            logger.debug("printing info regarding ue[{}]".format(i))
+            meas_data_lst = frmt_1.meas_data_lst
+            for k in range(meas_data_lst[i].meas_record_len):
+                meas_record_lst_el = meas_data_lst[i].meas_record_lst[k]
+                if frmt_1.meas_info_lst[k].meas_type.type.value == meas_type_enum.NAME_MEAS_TYPE:
+                    self.log_values(logger, frmt_1.meas_info_lst[k].meas_type.value.name, meas_record_lst_el, type=meas_record_lst_el.value.value)
+                if frmt_1.meas_info_lst[k].label_info_lst_len > 0:
+                    label_list = frmt_1.meas_info_lst[k].label_info_lst
+                    self.print_labels(logger=logger, label_size=frmt_1.meas_info_lst[k].label_info_lst_len, label_list=label_list)
+
+                elif frmt_1.meas_info_lst[k].meas_type.type.value == meas_type_enum.ID_MEAS_TYPE:
+                    self.log_values_id(logger, frmt_1.meas_info_lst[k].meas_type.value.id, meas_record_lst_el)
+                else:
+                    logger.info("Not supported meas type {}".format(self.data.frm_1.meas_info_lst[k].meas_type.type.value))
+
+    def print_labels(self, logger: Logger, label_size: ctypes.c_size_t, label_list: label_info_lst_t):
+        
+        for i in range(label_size):
+            label_el = label_list[i]
+            if label_el.noLabel:
+                logger.info("noLabel: ".format(label_el.noLabel.contents.value))
+            
+            if label_el.plmn_id:
+                logger.info("plmn_id: ".format(label_el.plmn_id.contents.value))
+            
+            if label_el.sliceID:
+                logger.info("sliceID: ".format(label_el.sliceID.contents.value))
+            
+            if label_el.fiveQI:
+                logger.info("fiveQI: ".format(label_el.fiveQI.contents.value))
+            
+            if label_el.qFI:
+                logger.info("qFI: ".format(label_el.fiveQI.contents.value))
+            
 
     def log_values(self, logger: Logger, meas_type: ByteArray, meas_record: meas_record_lst_t, type=meas_value_e.INTEGER_MEAS_VALUE):
         meas_type_bs = bytes(np.ctypeslib.as_array(meas_type.buf, shape = (meas_type.len,)))
