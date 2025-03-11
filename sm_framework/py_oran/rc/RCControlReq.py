@@ -223,60 +223,67 @@ class RCControlReqWrapper():
             
             # Only Radio Bearer Control Supported
             style_bytes = bytes(np.ctypeslib.as_array(style.name.buf, shape = (style.name.len,)))
-            style_decoded = style_bytes.decode('utf-8')
-            if style_decoded != "Radio Bearer Control":
-                # TODO Add error message
-                print("Not Supported Style")
-                return
-
-            self.control_req.hdr.format = style.hdr
-            
-            if self.control_req.hdr.format.value !=e2sm_rc_ctrl_hdr_e.FORMAT_1_E2SM_RC_CTRL_HDR:
-                print("Not supported header format")
-                return
-            self.control_req.hdr.union.frmt_1 = hdr.e2sm_rc_ctrl_hdr_frmt_1_t()
-
-            self.control_req.hdr.union.frmt_1.ric_style_type = ric_style_types[style_decoded]
-
-            # TODO How do we get ue_id?
-            if not ue_id is None:
-                self.control_req.hdr.union.frmt_1.ue_id = ue_id
+            style_decoded_string = style_bytes.decode('utf-8')
+            if style_decoded_string == "Radio Bearer Control":
+                self.generate_radio_bearer_control_msg(style=style, style_decoded=style_decoded_string, ue_id=ue_id)
+            elif style_decoded_string == "Radio Resource Allocation Control":
+                print("TODO")
             else:
-                print("UE ID not provided skipping (this could generate an error during encoding)...")
-
-            self.control_req.msg.format = style.msg
-
-            if self.control_req.msg.format.value !=e2sm_rc_ctrl_msg_e.FORMAT_1_E2SM_RC_CTRL_MSG:
-                print("Not supported message format")
-                return
-            
-            seq_ctrl_act = style.seq_ctrl_act
-            sz_seq_ctrl_act = style.sz_seq_ctrl_act
-
-            if not seq_ctrl_act:
                 # TODO add error message
+                print("Not Supported Style {}".format(style_decoded_string))
                 return
 
-            for j in range(0, sz_seq_ctrl_act):
-                seq_ctrl_act_name_bytes = bytes(np.ctypeslib.as_array(seq_ctrl_act[j].name.buf, shape = (seq_ctrl_act[j].name.len,)))
-                seq_ctrl_act_name = seq_ctrl_act_name_bytes.decode('utf-8')
-                # We should make this as a parameter
-                # QoS flow Mapping configuration:
-                # To request the multiplexing of QoS flows to a DRB (addition, modification, deletion)
-                if seq_ctrl_act_name != "QoS flow mapping configuration":
-                    # TODO Add error message
-                    print("not recognized control action")
-                    return
+            
 
-                self.control_req.hdr.union.frmt_1.ctrl_act_id = control_action_ids[seq_ctrl_act_name]
-                self.control_req.msg.union.frmt_1.sz_ran_param = seq_ctrl_act[j].sz_seq_assoc_ran_param
 
-                # Creating ran parameter array
-                RanParamArr = ctrl.seq_ran_param_t * self.control_req.msg.union.frmt_1.sz_ran_param
-                self.control_req.msg.union.frmt_1.ran_param = RanParamArr()
+    def generate_radio_bearer_control_msg(self,  style: funcdef.seq_ctrl_style_t, style_decoded, ue_id: hdr.ue_id_e2sm_t=None):
+        self.control_req.hdr.format = style.hdr
+            
+        if self.control_req.hdr.format.value != e2sm_rc_ctrl_hdr_e.FORMAT_1_E2SM_RC_CTRL_HDR:
+            print("Not supported header format")
+            return
+        self.control_req.hdr.union.frmt_1 = hdr.e2sm_rc_ctrl_hdr_frmt_1_t()
 
-                self.qos_flow_mapping_config_handler(seq_ctrl_act[j], seq_ctrl_act[j].sz_seq_assoc_ran_param)
+        self.control_req.hdr.union.frmt_1.ric_style_type = ric_style_types[style_decoded]
 
+        # TODO How do we get ue_id?
+        if not ue_id is None:
+            self.control_req.hdr.union.frmt_1.ue_id = ue_id
+        else:
+            print("UE ID not provided skipping (this could generate an error during encoding)...")
+
+        self.control_req.msg.format = style.msg
+
+        if self.control_req.msg.format.value !=e2sm_rc_ctrl_msg_e.FORMAT_1_E2SM_RC_CTRL_MSG:
+            print("Not supported message format")
+            return
+        
+        seq_ctrl_act = style.seq_ctrl_act
+        sz_seq_ctrl_act = style.sz_seq_ctrl_act
+
+        if not seq_ctrl_act:
+            # TODO add error message
+            return
+
+        for j in range(0, sz_seq_ctrl_act):
+            seq_ctrl_act_name_bytes = bytes(np.ctypeslib.as_array(seq_ctrl_act[j].name.buf, shape = (seq_ctrl_act[j].name.len,)))
+            seq_ctrl_act_name = seq_ctrl_act_name_bytes.decode('utf-8')
+            # We should make this as a parameter
+            # QoS flow Mapping configuration:
+            # To request the multiplexing of QoS flows to a DRB (addition, modification, deletion)
+            if seq_ctrl_act_name != "QoS flow mapping configuration":
+                # TODO Add error message
+                print("not recognized control action")
+                return
+
+            self.control_req.hdr.union.frmt_1.ctrl_act_id = control_action_ids[seq_ctrl_act_name]
+            self.control_req.msg.union.frmt_1.sz_ran_param = seq_ctrl_act[j].sz_seq_assoc_ran_param
+
+            # Creating ran parameter array
+            RanParamArr = ctrl.seq_ran_param_t * self.control_req.msg.union.frmt_1.sz_ran_param
+            self.control_req.msg.union.frmt_1.ran_param = RanParamArr()
+
+            self.qos_flow_mapping_config_handler(seq_ctrl_act[j], seq_ctrl_act[j].sz_seq_assoc_ran_param)
 
     # def __del__(self):
         # print("tempting free")
