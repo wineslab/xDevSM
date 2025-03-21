@@ -9,6 +9,8 @@ import ctypes
 # osc xappframe
 from ricxappframe.xapp_frame import RMRXapp, rmr
 from ricxappframe.e2ap.asn1 import ControlRequestMsg
+from ricxappframe.util.constants import Constants
+
 from mdclogpy import Level
 import ricxappframe.xapp_rest as ricrest
 
@@ -22,12 +24,29 @@ import sm_framework.py_oran.rc.RCControlHdr as ctrlhdr
 
 class XappRCFrame(RMRXapp):
 
-    def __init__(self, xapp_name, address, port, entrypoint=None):
+    def __init__(self, address, port, entrypoint=None):
+        super().__init__(default_handler=self.__default_handler, rmr_port=4560, post_init=self._post_init, rmr_wait_for_ready=True)
         self.address = address
         self.port = port
-        self.xapp_name = xapp_name
 
         self.rc_function_def_wrapper = funcdef.RCFuncDefWrapper(hex="") 
+
+         # Getting plt namespace
+        self.pltnamespace = os.environ.get("PLT_NAMESPACE")
+        if self.pltnamespace is None:
+            self.pltnamespace = Constants.DEFAULT_PLT_NS
+
+        self.xapp_name = self._config_data.get("name")
+
+        # Getting app namespace
+        self.app_namespace = self._config_data.get("APP_NAMESPACE")
+        if self.app_namespace is None:
+            self.app_namespace = Constants.DEFAULT_XAPP_NS
+        # Getting app namespace
+        self.app_namespace = self._config_data.get("APP_NAMESPACE")
+        if self.app_namespace is None:
+            self.app_namespace = Constants.DEFAULT_XAPP_NS
+
 
         # HTTP Server: create the thread HTTP server and set the uri handler callbacks
         self.server = ricrest.ThreadedHTTPServer(self.address, self.port)
@@ -42,14 +61,13 @@ class XappRCFrame(RMRXapp):
         # start the server
         self.server.start()
 
-        os.environ["RMR_SRC_ID"] = xapp_name
+        os.environ["RMR_SRC_ID"] = self.xapp_name
         os.environ["RMR_LOG_VLEVEL"] = str(4)
         os.environ["RMR_RTG_SVC"] = "4561"
 
 
-        self.e2mgr_link = Values.GENERAL_PATH.format(Values.PLT_NAMESPACE, Values.E2MGR_SERVICE, Values.E2MGR_PORT) + "/v1/nodeb/"
+        self.e2mgr_link = Values.GENERAL_PATH.format(self.pltnamespace, Values.E2MGR_SERVICE, self.pltnamespace, Values.E2MGR_PORT) + "/v1/nodeb/"
 
-        super().__init__(default_handler=self.__default_handler, rmr_port=4560, post_init=self._post_init, rmr_wait_for_ready=True)
         self.logger.set_level(Level.DEBUG)
 
     def __config_get_handler(self, name, path, data, ctype):
