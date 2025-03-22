@@ -534,7 +534,14 @@ class KpmIndMsg(ctypes.Structure):
             if gnb_mono.global_ng_ran_node_id:
                 logger.info("---- global_ng_ran_node_id")
                 logger.info("add logging")
-
+        elif ue_info.type.value == ue_id_e2sm_e.GNB_DU_UE_ID_E2SM:
+            logger.info("-- GNB_DU_UE_ID_E2SM")
+            gnb_du = ue_info.union.gnb_du
+            logger.info("----gnb_cu_ue_f1ap: {}".format(gnb_du.gnb_cu_ue_f1ap))
+            if gnb_du.ran_ue_id:
+                logger.info("----ran_ue_id: {}".format(gnb_du.ran_ue_id.contents.value))
+        else:
+            logger.debug("no log information for ue info type: {}".format(ue_info.type.value))
             
             
             
