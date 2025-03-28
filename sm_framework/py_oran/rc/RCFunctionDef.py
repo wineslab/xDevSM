@@ -257,6 +257,8 @@ class RCFuncDef(ctypes.Structure):
                 function_def_array = bytes(np.ctypeslib.as_array(function_def.name.buf, shape = (function_def.name.len,)))
                 function_def_decoded = function_def_array.decode('utf-8')
                 print(function_def_decoded)
+                print("hdr frmt: {}".format(function_def.hdr))
+                print("msg frmt: {}".format(function_def.msg))
 
         if self.policy:
             print("[Policy]: TBD")

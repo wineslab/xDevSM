@@ -9,7 +9,7 @@ from sm_framework.py_oran.rc.enums import *
 from sm_framework.lib.library_wrapper import rc_lib, wrap_functions
 
 # Defined in Section 7.6.2.1 of the RC Service Model Specification
-control_action_ids = {
+control_action_ids_1 = {
     "DRB QoS Configuration": 1,
     "QoS flow mapping configuration": 2,
     "Logical channel configuration": 3,
@@ -19,10 +19,19 @@ control_action_ids = {
     "PDCP Duplication control": 7
 }
 
+control_action_ids_2 = {
+    "DRX parameter configuration": 1,
+    "SR periodicity configuration": 2,
+    "SPS parameters configuration": 3,
+    "Configured grant control": 4,
+    "CQI table configuration": 5,
+    "Slice-level PRB quota": 6
+}
+
 # RIC Style Type for RIC Control Service: defined in SEction 7.6.1 of the RC Service Model Specification
 ric_style_types = {
     "Radio Bearer Control": 1,
-    "Radio resource allocation control": 2,
+    "Radio Resource Allocation Control": 2,
     "Connected mode mobility control": 3,
     "Radio access control": 4,
     "Dual connectivity (DC) control": 5,
@@ -51,6 +60,20 @@ qos_ran_parameter_id_to_name = {
     5: "QoS Flow Mapping Indication"
 }
 
+prb_quota_slice_level_ids = {
+    "RRM Policy Ratio List": 1,
+    "RRM Policy Ratio Group": 2,
+    "RRM Policy": 3,
+    "RRM Policy Member List": 5,
+    "RRM Policy Member": 6,
+    "PLMN Identity": 7,
+    "S-NSSAI": 8,
+    "SST": 9,
+    "SD": 10,
+    "Min PRB Policy Ratio": 11,
+    "Max PRB Policy Ratio": 12,
+    "Dedicated PRB Policy Ratio": 13
+}
 
 class RCControlReq(ctypes.Structure):
     _fields_ = [
@@ -205,6 +228,140 @@ class RCControlReqWrapper():
             else:
                 print("QoS parameter not supported {}".format(ctrl_act.assoc_ran_param[i].id))
             
+    def rrm_prb_policy_ratio_handler(self, ctrl_act: funcdef.seq_ctrl_act_2_t, sz_ran_param: ctypes.c_size_t):
+
+        param_name_bytes = bytes(np.ctypeslib.as_array(ctrl_act.assoc_ran_param[0].name.buf, shape=(ctrl_act.assoc_ran_param[0].name.len,)))
+        param_name = param_name_bytes.decode('utf-8')
+        print("Setting Parameter: {}".format(param_name))
+
+        # FIXME -> make these as paramters
+        PLMN = ByteArray()
+        PLMN.from_hex("00F110")
+        sst_value = 1
+        sd_value = 1 
+
+        # S-NSSAI encoding
+        sst_value = sst_value.to_bytes(1, byteorder='big')
+        sst_byte_array = ByteArray()
+        sst_byte_array.len = len(sst_value)
+        sst_byte_array.buf = (ctypes.c_uint8 * len(sst_value))(*sst_value)
+        sd_value = sd_value.to_bytes(3, byteorder='big')
+        sd_byte_array = ByteArray()
+        sd_byte_array.len = len(sd_value)
+        sd_byte_array.buf = (ctypes.c_uint8 * len(sd_value))(*sd_value)
+
+
+        # Single Param containing an RRM Policy Ratio List
+        # Creating RRM Policy Ratio List
+        self.control_req.msg.union.frmt_1.ran_param[0].ran_param_id = prb_quota_slice_level_ids["RRM Policy Ratio List"]
+        self.control_req.msg.union.frmt_1.ran_param[0].ran_param_val.type = ran_parameter_val_type_e.LIST_RAN_PARAMETER_VAL_TYPE
+        # Filling RRM Policy Ratio List
+        rrm_policy_ratio_list = ctrl.ran_param_list_t()
+        rrm_policy_ratio_list.sz_lst_ran_param = 1
+        lst_param_type = ctrl.lst_ran_param_t * rrm_policy_ratio_list.sz_lst_ran_param
+        rrm_policy_ratio_list.lst_ran_param = lst_param_type()
+        
+        # >RRM Policy Ratio Group -> 2
+        rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.sz_ran_param_struct = 4 # RRM Policy, Min, Max PRB Policy Ratio and Dedicated PRB Policy Ratio
+        
+        # We should have had here something like:
+        # rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_id = prb_quota_slice_level_ids["RRM Policy Ratio Group"]
+        # However, we do not have it in the structure, as openairinterface encoder does not support this: https://gitlab.eurecom.fr/mosaic5g/flexric/-/blob/dev/src/sm/rc_sm/enc/rc_enc_asn.c?ref_type=heads#L1107
+        # The highlited by oaia is also present in RC V3.0
+
+        # >> allocating memory
+        lst_param_struct_type = ctrl.seq_ran_param_t * rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.sz_ran_param_struct
+        rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct = lst_param_struct_type()
+
+        # First Element of the structure: >>RRM Policy
+        rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[0].ran_param_id = prb_quota_slice_level_ids["RRM Policy"]
+        rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[0].ran_param_val.type = ran_parameter_val_type_e.STRUCTURE_RAN_PARAMETER_VAL_TYPE
+        # Allocating struct
+        rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[0].ran_param_val.union.strct = ctypes.pointer(ctrl.ran_param_struct_t())
+        rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[0].ran_param_val.union.strct.contents.sz_ran_param_struct = 1 # Only one RRM Policy Member List
+        rrm_policy_type = ctrl.seq_ran_param_t * rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[0].ran_param_val.union.strct.contents.sz_ran_param_struct
+        rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[0].ran_param_val.union.strct.contents.ran_param_struct = rrm_policy_type()
+        
+        rrm_policy = rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[0].ran_param_val.union.strct.contents.ran_param_struct[0]
+        rrm_policy.ran_param_id = prb_quota_slice_level_ids["RRM Policy Member List"]
+        rrm_policy.ran_param_val.type = ran_parameter_val_type_e.LIST_RAN_PARAMETER_VAL_TYPE
+        # Inside RRM Policy: >>RRM Policy Member List
+        rrm_policy_member_list = ctypes.pointer(ctrl.ran_param_list_t())
+        rrm_policy_member_list.contents.sz_lst_ran_param = 1
+        lst_param_type = ctrl.lst_ran_param_t * rrm_policy_member_list.contents.sz_lst_ran_param
+        rrm_policy_member_list.contents.lst_ran_param = lst_param_type()
+        # rrm_policy_member_list.contents.lst_ran_param[0].ran_pram_id = prb_quota_slice_level_ids["RRM Policy Member"] # -> missing same reasons as before
+        
+        # RRM Policy Member
+        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.sz_ran_param_struct = 2
+        rrm_policy_member_type = ctrl.seq_ran_param_t * rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.sz_ran_param_struct
+        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct = rrm_policy_member_type()
+       
+
+        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct[0].ran_param_id = prb_quota_slice_level_ids["PLMN Identity"]
+        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct[0].ran_param_val.type = ran_parameter_val_type_e.ELEMENT_KEY_FLAG_FALSE_RAN_PARAMETER_VAL_TYPE
+        # Filling plmn identity
+        plmn_identity = ctrl.ran_parameter_value_t()
+        plmn_identity.type = ran_parameter_value_e.OCTET_STRING_RAN_PARAMETER_VALUE
+        plmn_identity.union.octet_str_ran = PLMN 
+        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct[0].ran_param_val.union.flag_false = ctypes.pointer(plmn_identity)
+
+        # Creating S-NSSAI structure
+        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_id = prb_quota_slice_level_ids["S-NSSAI"]
+        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_val.type = ran_parameter_val_type_e.STRUCTURE_RAN_PARAMETER_VAL_TYPE
+        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_val.union.strct = ctypes.pointer(ctrl.ran_param_struct_t())
+        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_val.union.strct.contents.sz_ran_param_struct = 2 # Two elements
+        snssai_type = ctrl.seq_ran_param_t * rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_val.union.strct.contents.sz_ran_param_struct
+        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_val.union.strct.contents.ran_param_struct = snssai_type()
+
+        # Filling S-NSSAI Structure
+        # SST
+        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_val.union.strct.contents.ran_param_struct[0].ran_param_id = prb_quota_slice_level_ids["SST"]
+        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_val.union.strct.contents.ran_param_struct[0].ran_param_val.type = ran_parameter_val_type_e.ELEMENT_KEY_FLAG_FALSE_RAN_PARAMETER_VAL_TYPE
+        sst = ctrl.ran_parameter_value_t()
+        sst.type = ran_parameter_value_e.OCTET_STRING_RAN_PARAMETER_VALUE
+        sst.union.octet_str_ran = sst_byte_array  
+        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_val.union.strct.contents.ran_param_struct[0].ran_param_val.union.flag_false = ctypes.pointer(sst)
+
+        # SD
+        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_val.union.strct.contents.ran_param_struct[1].ran_param_id = prb_quota_slice_level_ids["SD"]
+        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_val.union.strct.contents.ran_param_struct[1].ran_param_val.type = ran_parameter_val_type_e.ELEMENT_KEY_FLAG_FALSE_RAN_PARAMETER_VAL_TYPE
+        sd = ctrl.ran_parameter_value_t()
+        sd.type = ran_parameter_value_e.OCTET_STRING_RAN_PARAMETER_VALUE
+        sd.union.octet_str_ran = sd_byte_array
+        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_val.union.strct.contents.ran_param_struct[1].ran_param_val.union.flag_false = ctypes.pointer(sd)
+
+        # inserting it in list element
+        rrm_policy.ran_param_val.union.lst = rrm_policy_member_list
+
+        # Second Element of the structure: >>Min PRB Policy Ratio
+        rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_id = prb_quota_slice_level_ids["Min PRB Policy Ratio"]
+        rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_val.type = ran_parameter_val_type_e.ELEMENT_KEY_FLAG_FALSE_RAN_PARAMETER_VAL_TYPE
+        # Filling parameter
+        min_prb_policy_ratio = ctrl.ran_parameter_value_t()
+        min_prb_policy_ratio.type = ran_parameter_value_e.INTEGER_RAN_PARAMETER_VALUE
+        min_prb_policy_ratio.union.int_ran = 10  # FIXME: Replace with the actual value
+        rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_val.union.flag_false = ctypes.pointer(min_prb_policy_ratio)
+        
+        # Third Element of the structure: >>Max PRB Policy Ratio
+        rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[2].ran_param_id = prb_quota_slice_level_ids["Max PRB Policy Ratio"]
+        rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[2].ran_param_val.type = ran_parameter_val_type_e.ELEMENT_KEY_FLAG_FALSE_RAN_PARAMETER_VAL_TYPE
+        # Filling parameter
+        max_prb_policy_ratio = ctrl.ran_parameter_value_t()
+        max_prb_policy_ratio.type = ran_parameter_value_e.INTEGER_RAN_PARAMETER_VALUE
+        max_prb_policy_ratio.union.int_ran = 12  # FIXME: Replace with the actual value
+        rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[2].ran_param_val.union.flag_false = ctypes.pointer(max_prb_policy_ratio)
+
+        # Third Element of the structure: >>Dedicated PRB Policy Ratio
+        rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[3].ran_param_id = prb_quota_slice_level_ids["Dedicated PRB Policy Ratio"]
+        rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[3].ran_param_val.type = ran_parameter_val_type_e.ELEMENT_KEY_FLAG_FALSE_RAN_PARAMETER_VAL_TYPE
+        # Filling parameter
+        ded_prb_policy_ratio = ctrl.ran_parameter_value_t()
+        ded_prb_policy_ratio.type = ran_parameter_value_e.INTEGER_RAN_PARAMETER_VALUE
+        ded_prb_policy_ratio.union.int_ran = 11  # FIXME: Replace with the actual value
+        rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[3].ran_param_val.union.flag_false = ctypes.pointer(ded_prb_policy_ratio)
+
+        self.control_req.msg.union.frmt_1.ran_param[0].ran_param_val.union.lst = ctypes.pointer(rrm_policy_ratio_list)
 
 
     def gen_rc_msg(self, ran_func_dsc: funcdef.RCFuncDef, ue_id: hdr.ue_id_e2sm_t=None):
@@ -227,7 +384,7 @@ class RCControlReqWrapper():
             if style_decoded_string == "Radio Bearer Control":
                 self.generate_radio_bearer_control_msg(style=style, style_decoded=style_decoded_string, ue_id=ue_id)
             elif style_decoded_string == "Radio Resource Allocation Control":
-                print("TODO")
+                self.generate_radio_resource_allocation_control_frmt_1(style=style, style_decoded=style_decoded_string, ue_id=ue_id)
             else:
                 # TODO add error message
                 print("Not Supported Style {}".format(style_decoded_string))
@@ -271,12 +428,12 @@ class RCControlReqWrapper():
             # We should make this as a parameter
             # QoS flow Mapping configuration:
             # To request the multiplexing of QoS flows to a DRB (addition, modification, deletion)
+            print("Generating rc control: {}".format(seq_ctrl_act_name))
             if seq_ctrl_act_name != "QoS flow mapping configuration":
                 # TODO Add error message
-                print("not recognized control action")
+                print("not supported control action")
                 return
-
-            self.control_req.hdr.union.frmt_1.ctrl_act_id = control_action_ids[seq_ctrl_act_name]
+            self.control_req.hdr.union.frmt_1.ctrl_act_id = control_action_ids_1[seq_ctrl_act_name]
             self.control_req.msg.union.frmt_1.sz_ran_param = seq_ctrl_act[j].sz_seq_assoc_ran_param
 
             # Creating ran parameter array
@@ -284,6 +441,54 @@ class RCControlReqWrapper():
             self.control_req.msg.union.frmt_1.ran_param = RanParamArr()
 
             self.qos_flow_mapping_config_handler(seq_ctrl_act[j], seq_ctrl_act[j].sz_seq_assoc_ran_param)
+
+    def generate_radio_resource_allocation_control_frmt_1(self,  style: funcdef.seq_ctrl_style_t, style_decoded, ue_id: hdr.ue_id_e2sm_t=None):
+        """
+        format 1 control for each ue, meaning prb allocation for each ue(?)
+        """
+        self.control_req.hdr.format = e2sm_rc_ctrl_hdr_e.FORMAT_1_E2SM_RC_CTRL_HDR
+
+        self.control_req.hdr.union.frmt_1 = hdr.e2sm_rc_ctrl_hdr_frmt_1_t()
+
+        # Radio resource allocation control
+        self.control_req.hdr.union.frmt_1.ric_style_type = ric_style_types[style_decoded]
+        
+        if ue_id is None:
+            print("UE ID not provided")
+            return
+        
+        self.control_req.hdr.union.frmt_1.ue_id = ue_id
+
+        self.control_req.msg.format = e2sm_rc_ctrl_msg_e.FORMAT_1_E2SM_RC_CTRL_MSG
+
+        seq_ctrl_act = style.seq_ctrl_act
+        sz_seq_ctrl_act = style.sz_seq_ctrl_act
+
+        if not seq_ctrl_act:
+            # TODO add error message
+            return
+
+        for j in range(0, sz_seq_ctrl_act):
+            seq_ctrl_act_name_bytes = bytes(np.ctypeslib.as_array(seq_ctrl_act[j].name.buf, shape = (seq_ctrl_act[j].name.len,)))
+            seq_ctrl_act_name = seq_ctrl_act_name_bytes.decode('utf-8')
+            print("Generating rc control: {}".format(seq_ctrl_act_name))
+            if seq_ctrl_act_name != "Slice-level PRB quota":
+                # TODO Add error message
+                print("not supported control action")
+                return
+            self.control_req.hdr.union.frmt_1.ctrl_act_id = control_action_ids_2[seq_ctrl_act_name]
+            print("format 1 sz {}".format(seq_ctrl_act[j].sz_seq_assoc_ran_param))
+            self.control_req.msg.union.frmt_1.sz_ran_param = sz_seq_ctrl_act
+            #seq_ctrl_act[j].sz_seq_assoc_ran_param
+            # Creating ran parameter array
+            RanParamArr = ctrl.seq_ran_param_t * self.control_req.msg.union.frmt_1.sz_ran_param
+            self.control_req.msg.union.frmt_1.ran_param = RanParamArr()
+
+            self.rrm_prb_policy_ratio_handler(seq_ctrl_act[j], seq_ctrl_act[j].sz_seq_assoc_ran_param)
+
+        
+
+
 
     # def __del__(self):
         # print("tempting free")

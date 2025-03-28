@@ -24,4 +24,10 @@ class ByteArray(ctypes.Structure):
             return b""  # Return an empty byte string if there's no data
         return bytes(ctypes.cast(self.buf, ctypes.POINTER(ctypes.c_uint8 * self.len)).contents)
 
+    def from_hex(self, hex:str):
+        byte_string = bytes.fromhex(hex)
+        byte_array = (ctypes.c_uint8 * len(byte_string)).from_buffer_copy(byte_string)
+        self.len = len(byte_array)
+        self.buf = byte_array
+
 free = wrap_functions(wrapper, 'free_byte_array', None, [ByteArray])       

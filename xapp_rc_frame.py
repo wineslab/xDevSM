@@ -42,10 +42,6 @@ class XappRCFrame(RMRXapp):
         self.app_namespace = self._config_data.get("APP_NAMESPACE")
         if self.app_namespace is None:
             self.app_namespace = Constants.DEFAULT_XAPP_NS
-        # Getting app namespace
-        self.app_namespace = self._config_data.get("APP_NAMESPACE")
-        if self.app_namespace is None:
-            self.app_namespace = Constants.DEFAULT_XAPP_NS
 
 
         # HTTP Server: create the thread HTTP server and set the uri handler callbacks
@@ -93,13 +89,8 @@ class XappRCFrame(RMRXapp):
         xapp.logger.info("received: {}".format(summary))
         if summary[rmr.RMR_MS_MSG_TYPE] == Values.RIC_CONTROL_ACK:
             xapp.logger.info("Received control ack")
-            self.logger.info("Received control ack")
-        # if summary[rmr.RMR_MS_MSG_TYPE] == Values.RIC_INDICATION:
-        #     self._handle_indication(xapp, summary) # FIXME maybe better with a private method 
-        # elif summary[rmr.RMR_MS_MSG_TYPE] == Values.RIC_ERROR_INDICATION:
-        #     xapp.logger.error("Error in indication message")
-        # else:
-        #     xapp.logger.info("not recognized message received")
+        elif summary[rmr.RMR_MS_MSG_TYPE] == Values.RIC_CONTROL_FAILURE:
+            xapp.logger.error("Received failure ack")
         
         xapp.rmr_free(sbuf)
 
@@ -158,7 +149,8 @@ class XappRCFrame(RMRXapp):
         wrapper = ctrlReq.RCControlReqWrapper()
         if ue_id is None:
             self.logger.info("[warn] using mock ue_id")
-            ue_id = self.get_mock_ue_id()
+            #ue_id = self.get_mock_ue_id()
+            ue_id = self.get_mock_du_ue_id()
 
         wrapper.gen_rc_msg(ran_func_dsc=func_def, ue_id=ue_id)
         wrapper.print_ctrl_req()
@@ -192,6 +184,7 @@ class XappRCFrame(RMRXapp):
         rmr.rmr_set_meid(sbuf, e2_node_id.encode("utf8"))
         sbuf = rmr.rmr_send_msg(self._mrc, sbuf)
         self.logger.info("Message Sent")
+        
         # if sbuf.contents.state == 0:
         #     self.logger.info("freeing buffer")
         #     self.rmr_free(sbuf)
@@ -206,6 +199,23 @@ class XappRCFrame(RMRXapp):
         self.logger.info("Bye!")
         sys.exit()
 
+    def get_mock_du_ue_id(self) -> ctrlhdr.ue_id_e2sm_t:
+        ue_id = ctrlhdr.ue_id_e2sm_t()
+        ue_id.type = ctrlhdr.ue_id_e2sm_e.GNB_DU_UE_ID_E2SM
+        
+        gnb_du = ctrlhdr.gnb_du_e2sm_t()
+
+        gnb_du.gnb_cu_ue_f1ap = 0
+        # gnb_du.ran_ue_id = 0 # We don't have this information in KPM messages in srs
+
+        ue_id.union.gnb_du = gnb_du
+        
+        return ue_id
+
+
+
+
+    
     def get_mock_ue_id(self) -> ctrlhdr.ue_id_e2sm_t:
         ue_id = ctrlhdr.ue_id_e2sm_t()
         ue_id.type = ctrlhdr.ue_id_e2sm_e.GNB_UE_ID_E2SM
