@@ -24,14 +24,34 @@ import sm_framework.py_oran.rc.RCControlHdr as ctrlhdr
 
 class XappRCFrame(RMRXapp):
 
-    def __init__(self, address, port, entrypoint=None):
-        super().__init__(default_handler=self.__default_handler, rmr_port=4560, post_init=self._post_init, rmr_wait_for_ready=True)
+    def __init__(self, address, entrypoint=None):
+
+        self.rmr_port = 4560
+
+        super().__init__(default_handler=self.__default_handler, rmr_port=self.rmr_port, post_init=self._post_init, rmr_wait_for_ready=True)
+        
+        self.logger.set_level(Level.DEBUG)
+
         self.address = address
-        self.port = port
 
         self.rc_function_def_wrapper = funcdef.RCFuncDefWrapper(hex="") 
+        # Getting ports from config file
+        messaging_format = self._config_data.get("messaging")
+        self.http_port, self.rmr_svc_port = self.loading_ports(messaging_format)
+        if self.http_port is None:
+            self.logger.error("http port not found: setting default to 8080")
+            self.http_port = 8080            
+        # TODO --> This cannot be made dynamic right now. We should change where the config file is read            
+        # elif self.rmr_port is None: 
+        #     self.logger.error("rmr port not found: setting default to 4560")
+        #     self.rmr_port = 4560
+        elif self.rmr_svc_port is None: 
+            self.logger.error("rmr svc port not found: setting default to 4561")
+            self.rmr_svc_port = 4561
+        else:
+            self.logger.info("http port: {}, rmr port: {}, rmr svc port: {}".format(self.http_port, self.rmr_port, self.rmr_svc_port))
 
-         # Getting plt namespace
+        # Getting plt namespace
         self.pltnamespace = os.environ.get("PLT_NAMESPACE")
         if self.pltnamespace is None:
             self.pltnamespace = Constants.DEFAULT_PLT_NS
@@ -45,7 +65,7 @@ class XappRCFrame(RMRXapp):
 
 
         # HTTP Server: create the thread HTTP server and set the uri handler callbacks
-        self.server = ricrest.ThreadedHTTPServer(self.address, self.port)
+        self.server = ricrest.ThreadedHTTPServer(self.address, self.http_port)
 
         self.server.handler.add_handler(self.server.handler, "GET", "config", "/ric/v1/config", self.__config_get_handler)
         self.server.handler.add_handler(self.server.handler, "GET", "healthAlive", "/ric/v1/health/alive", self.__healthy_get_alive_handler)
@@ -59,7 +79,7 @@ class XappRCFrame(RMRXapp):
 
         os.environ["RMR_SRC_ID"] = self.xapp_name
         os.environ["RMR_LOG_VLEVEL"] = str(4)
-        os.environ["RMR_RTG_SVC"] = "4561"
+        os.environ["RMR_RTG_SVC"] = str(self.rmr_svc_port)
 
 
         self.e2mgr_link = Values.GENERAL_PATH.format(self.pltnamespace, Values.E2MGR_SERVICE, self.pltnamespace, Values.E2MGR_PORT) + "/v1/nodeb/"
@@ -211,10 +231,6 @@ class XappRCFrame(RMRXapp):
         ue_id.union.gnb_du = gnb_du
         
         return ue_id
-
-
-
-
     
     def get_mock_ue_id(self) -> ctrlhdr.ue_id_e2sm_t:
         ue_id = ctrlhdr.ue_id_e2sm_t()
@@ -245,6 +261,46 @@ class XappRCFrame(RMRXapp):
 
         return ue_id
 
+    def get_app_namespace(self):
+        """
+        Returns:
+        ----------
+        app namespace
+        """
+        return self.app_namespace
 
+    def get_pltnamespace(self):
+        """
+        Returns:
+        ----------
+        plt namespace
+        """
+        return self.pltnamespace
+
+    def get_xapp_name(self):
+        """
+        Returns:
+        ----------
+        xapp name
+        """
+        return self.xapp_name
+
+    def loading_ports(self, messaging_format):
+        http_port = None
+        rmr_port = None
+        rmr_svc_port = None
+        for el in messaging_format["ports"]:
+            if el["name"] == "http":
+                http_port = el["port"]
+            elif el["name"] == "rmrdata":
+                rmr_port = el["port"]
+            elif el["name"] == "rmrroute":  
+                rmr_svc_port = el["port"]
+            else:
+                self.logger.error("Port not recognized")
+        
+        return http_port, rmr_svc_port
+    
+    
     def logic():
         pass

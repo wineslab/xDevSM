@@ -31,20 +31,38 @@ from sm_framework.py_oran.kpm.enums import ue_id_e2sm_e
 
 class XappKpmFrame(RMRXapp):
 
-    def __init__(self, address, port):
+    def __init__(self, address):
+        self.rmr_port = 4560
     
-        super().__init__(default_handler=self.__default_handler, rmr_port=4560, post_init=self._post_init, rmr_wait_for_ready=True)
+        super().__init__(default_handler=self.__default_handler, rmr_port=self.rmr_port, post_init=self._post_init, rmr_wait_for_ready=True)
         
-        self.address = address
-        self.port = port
-        
+        self.logger.set_level(Level.DEBUG)
+
+        self.address = address        
         self.subscription_id = {}
+
+        # Getting ports from config file
+        messaging_format = self._config_data.get("messaging")
+        self.http_port, self.rmr_svc_port = self.loading_ports(messaging_format)
+        if self.http_port is None:
+            self.logger.error("http port not found: setting default to 8080")
+            self.http_port = 8080
+        # TODO --> This cannot be made dynamic right now. We should change where the config file is read            
+        # elif self.rmr_port is None: 
+        #     self.logger.error("rmr port not found: setting default to 4560")
+        #     self.rmr_port = 4560
+        elif self.rmr_svc_port is None: 
+            self.logger.error("rmr svc port not found: setting default to 4561")
+            self.rmr_svc_port = 4561
+        
+        self.logger.info("http port: {}, rmr port: {}, rmr svc port: {}".format(self.http_port, self.rmr_port, self.rmr_svc_port))
 
         # Getting plt namespace
         self.pltnamespace = os.environ.get("PLT_NAMESPACE")
         if self.pltnamespace is None:
             self.pltnamespace = Constants.DEFAULT_PLT_NS
         
+        # getting xapp name
         self.xapp_name = self._config_data.get("name")
 
         # Getting app namespace
@@ -55,12 +73,11 @@ class XappKpmFrame(RMRXapp):
 
         self.uri_subscriptions = Values.GENERAL_PATH.format(self.pltnamespace, Values.SUBSCRIPTION_SERVICE, self.pltnamespace, Values.SUBSCRIPTION_PORT) + "/ric/v1/subscriptions"
 
-        
         # Subscriber
-        self.subscriber = subscribe.NewSubscriber(uri=self.uri_subscriptions, rmr_port=4560)
+        self.subscriber = subscribe.NewSubscriber(uri=self.uri_subscriptions, rmr_port=self.rmr_port)
 
         # HTTP Server: create the thread HTTP server and set the uri handler callbacks
-        self.server = ricrest.ThreadedHTTPServer(self.address, self.port)
+        self.server = ricrest.ThreadedHTTPServer(self.address, self.http_port)
 
         self.__ind_msg_callback = None
         self.__sub_failed_callback = None
@@ -78,18 +95,10 @@ class XappKpmFrame(RMRXapp):
         self.e2mgr_link = Values.GENERAL_PATH.format(self.pltnamespace, Values.E2MGR_SERVICE, self.pltnamespace, Values.E2MGR_PORT) + "/v1/nodeb/"
 
         # self.logger.info("Initializing xApp")
-        
-        
 
         os.environ["RMR_SRC_ID"] = self.xapp_name
         os.environ["RMR_LOG_VLEVEL"] = str(4)
-        os.environ["RMR_RTG_SVC"] = "4561"
-
-        
-        
-
-
-        self.logger.set_level(Level.DEBUG)
+        os.environ["RMR_RTG_SVC"] = str(self.rmr_svc_port)
 
         self.kpm_func_def_wrapper = KpmFunctionDef.KpmFuncDefArrWrapper(hex="")
 
@@ -287,8 +296,8 @@ class XappKpmFrame(RMRXapp):
                                                                   action_to_be_setup_list=actions,
                                                                   xapp_event_instance_id=12345)
         client_endpoint = self.subscriber.SubscriptionParamsClientEndpoint(host="service-{}-{}-http.{}".format(self.app_namespace, self.xapp_name, self.app_namespace), # make it as a parameter 
-                                                                       http_port=self.port, 
-                                                                       rmr_port=4560)
+                                                                       http_port=self.http_port, 
+                                                                       rmr_port=self.rmr_port)
         subsDirective = self.subscriber.SubscriptionParamsE2SubscriptionDirectives(2, 2, True)
         
 
@@ -343,6 +352,47 @@ class XappKpmFrame(RMRXapp):
         """
         return self.subscription_id[inventory_name]
     
+    def get_app_namespace(self):
+        """
+        Returns:
+        ----------
+        app namespace
+        """
+        return self.app_namespace
+    
+    def get_pltnamespace(self):
+        """
+        Returns:
+        ----------
+        plt namespace
+        """
+        return self.pltnamespace
+    
+    def get_xapp_name(self):
+        """
+        Returns:
+        ----------
+        xapp name
+        """
+        return self.xapp_name
+    
+    def loading_ports(self, messaging_format):
+        http_port = None
+        rmr_port = None
+        rmr_svc_port = None
+        for el in messaging_format["ports"]:
+            if el["name"] == "http":
+                http_port = el["port"]
+            elif el["name"] == "rmrdata":
+                rmr_port = el["port"]
+            elif el["name"] == "rmrroute":  
+                rmr_svc_port = el["port"]
+            else:
+                self.logger.error("Port not recognized")
+        
+        return http_port, rmr_svc_port
+    
+
     def terminating_xapp(self):
         self.logger.info("Received termination signal")
         if self.subscription_id is None:
