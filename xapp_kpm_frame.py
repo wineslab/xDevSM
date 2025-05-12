@@ -263,7 +263,7 @@ class XappKpmFrame(RMRXapp):
         response['payload'] = ("{}")
         return response
     
-    def subscribe(self, gnb, ev_trigger: Tuple[int, float], func_def: dict, action_type=Values.ACTION_TYPE):
+    def subscribe(self, gnb, ev_trigger: Tuple[int, float], func_def: dict, action_type=Values.ACTION_TYPE, ran_period_ms=1000, sst=1, sd=0):
 
         self.logger.info("Preparing subscription for gnb: {}".format(gnb.inventory_name))
 
@@ -277,7 +277,7 @@ class XappKpmFrame(RMRXapp):
         
         actions = []
         # encoding action defintion
-        encoded_actions_def = function_definition_builder.action_encoder(action_def_dict=func_def)
+        encoded_actions_def = function_definition_builder.action_encoder(action_def_dict=func_def, gran_period_ms=ran_period_ms, sst=sst, sd=sd)
 
         for index, key in enumerate(encoded_actions_def.keys()):
             value = encoded_actions_def[key].byte_array_to_tuple()

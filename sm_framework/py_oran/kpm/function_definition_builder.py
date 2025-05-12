@@ -6,7 +6,7 @@ from sm_framework.py_oran.kpm.KpmFunctionDef import KpmFuncDefArr
 from sm_framework.py_oran.kpm.enums import format_action_def_e
 
 
-encode_action_def = wrap_functions(wrapper, 'encode_action_def', ByteArray, [ctypes.POINTER(ctypes.c_char_p), ctypes.c_long])
+encode_action_def = wrap_functions(wrapper, 'encode_action_def', ByteArray, [ctypes.POINTER(ctypes.c_char_p), ctypes.c_uint32, ctypes.c_long, ctypes.c_uint8, ctypes.c_uint32])
 # decode_action_def = wrap_functions(wrapper, 'get_ran_func_def_kpm', ByteArray, [ctypes.POINTER(ctypes.c_char_p)])
 
 # TODO To be fixed
@@ -74,7 +74,7 @@ def action_array_builder(hex_xml, ran_function_id=2, oai=True, filter=None):
 def action_encoder_from_fun_obj(func_def_obj: KpmFuncDefArr, gran_period_ms=1000):
     action_encoder(action_def_dict=func_def_obj.get_dict_of_values(),gran_period_ms=gran_period_ms)
 
-def action_encoder(action_def_dict, gran_period_ms=1000) -> ByteArray:
+def action_encoder(action_def_dict, gran_period_ms=1000, sst=1, sd=0) -> ByteArray:
     """
     Encodes a list of function definitions into a format suitable for the submgr.
 
@@ -106,7 +106,7 @@ def action_encoder(action_def_dict, gran_period_ms=1000) -> ByteArray:
 
         act_gnb_c[-1] = None
 
-        ba : ByteArray = encode_action_def(act_gnb_c, gran_period_ms, format)
+        ba : ByteArray = encode_action_def(act_gnb_c, gran_period_ms, format, sst, sd)
         if ba.len != 0:
             result[format] = ba
     return result
