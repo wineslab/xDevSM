@@ -66,7 +66,7 @@ class XappKpmFrame(RMRXapp):
         self.xapp_name = self._config_data.get("name")
 
         # Getting app namespace
-        self.app_namespace = self._config_data.get("APP_NAMESPACE")
+        self.app_namespace = os.environ.get("APP_NAMESPACE")
         if self.app_namespace is None:
             self.app_namespace = Constants.DEFAULT_XAPP_NS
 
