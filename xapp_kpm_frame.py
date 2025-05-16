@@ -198,6 +198,9 @@ class XappKpmFrame(RMRXapp):
         # Indication hdr - decoding E2SM
         ind_hdr_mgr = KpmIndicationHdr.KpmIndHdrWrapper(ba_ind_header)
         decoded_ind_hdr = ind_hdr_mgr.decode()
+        if decoded_ind_hdr is None:
+            xapp.logger.info("indication header not decoded correctly")
+            return
         xapp.logger.debug("indication header encoded: {}, indication header encoded ba: {}, indication header format decoded: {}".format(
             indm.indication_header, ba_ind_header, decoded_ind_hdr.type.value
         ))
