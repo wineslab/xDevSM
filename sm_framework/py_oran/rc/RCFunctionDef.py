@@ -68,7 +68,7 @@ class seq_ran_param_3_t(ctypes.Structure):
     _fields_ = [
         ("id", ctypes.c_uint32),             # RAN Parameter ID [1-4294967295]
         ("name", ByteArray),                 # RAN Parameter Name [1-150]
-        ("def", ctypes.POINTER(ran_param_def_t))  # Optional RAN Parameter Definition (Pointer)
+        ("ran_param_def", ctypes.POINTER(ran_param_def_t))  # Optional RAN Parameter Definition (Pointer)
     ]
 
 class call_proc_break_t(ctypes.Structure):
@@ -259,9 +259,52 @@ class RCFuncDef(ctypes.Structure):
                 print(function_def_decoded)
                 print("hdr frmt: {}".format(function_def.hdr))
                 print("msg frmt: {}".format(function_def.msg))
+                for j in range(0, function_def.sz_seq_ctrl_act):
+                    action_def = function_def.seq_ctrl_act[j]
+                    action_def_array = bytes(np.ctypeslib.as_array(action_def.name.buf, shape = (action_def.name.len,)))
+                    action_def_decoded = action_def_array.decode('utf-8')
+                    print("action: {}".format(action_def_decoded))
+                    print("assoc ran param size: {}".format(action_def.sz_seq_assoc_ran_param))
+                    for k in range(0, action_def.sz_seq_assoc_ran_param):
+                        assoc_ran_param = action_def.assoc_ran_param[k]
+                        assoc_ran_param_name_array = bytes(np.ctypeslib.as_array(assoc_ran_param.name.buf, shape = (assoc_ran_param.name.len,)))
+                        assoc_ran_param_decoded = assoc_ran_param_name_array.decode('utf-8')
+                        print("assoc ran param name: {}".format(assoc_ran_param_decoded))
+                        print("assoc ran param id: {}".format(assoc_ran_param.id))
+                        if assoc_ran_param.ran_param_def:
+                            assoc_ran_param_def = assoc_ran_param.ran_param_def.contents
+                            print("assoc ran param def type: {}".format(assoc_ran_param_def.type.value))
+                            self.print_assoc_ran_param(assoc_ran_param_def)
+                            
+                                
 
+                   
         if self.policy:
             print("[Policy]: TBD")
+    
+    def print_assoc_ran_param(self, assoc_ran_param_def):
+        to_print = None
+        if assoc_ran_param_def.type.value == ran_parameter_def_type_e.LIST_RAN_PARAMETER_DEF_TYPE:
+            # print("it's a list")
+            to_print = assoc_ran_param_def.value.lst
+        elif assoc_ran_param_def.type.value == ran_parameter_def_type_e.STRUCTURE_RAN_PARAMETER_DEF_TYPE:
+            # print("it's a structure")
+            to_print = assoc_ran_param_def.value.strct
+        
+        if to_print:
+            # print("here")
+            for i in range(0, to_print.contents.sz_ran_param):
+                ran_param = to_print.contents.ran_param[i]
+                ran_param_name_array = bytes(np.ctypeslib.as_array(ran_param.ran_param_name.buf, shape = (ran_param.ran_param_name.len,)))
+                ran_param_name_decoded = ran_param_name_array.decode('utf-8')
+                print("ran param name: {}".format(ran_param_name_decoded))
+                print("ran param id: {}".format(ran_param.ran_param_id))
+                # print(ran_param.ran_param_def)
+                if ran_param.ran_param_def:
+                    ran_param_def = ran_param.ran_param_def.contents
+                    print("ran param def type: {}".format(ran_param_def.type.value))
+                    self.print_assoc_ran_param(ran_param_def)
+            
 
 class RCFuncDefWrapper():
     def __init__(self, hex: str):

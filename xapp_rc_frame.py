@@ -160,7 +160,7 @@ class XappRCFrame(RMRXapp):
         func_def_obj = self.rc_function_def_wrapper.decode()
         return func_def_obj
 
-    def send_control_request(self, e2_node_id, func_def: funcdef.RCFuncDef, ue_id: ctrlhdr.ue_id_e2sm_t=None, call_process_id: bytes=b""):
+    def send_control_request(self, e2_node_id, func_def: funcdef.RCFuncDef, ctrl_style_id=1, ue_id: ctrlhdr.ue_id_e2sm_t=None, call_process_id: bytes=b""):
         # TODO Add function parameters
         # TODO where should we take call_process_id information
         # Creating request
@@ -172,7 +172,7 @@ class XappRCFrame(RMRXapp):
             #ue_id = self.get_mock_ue_id()
             ue_id = self.get_mock_du_ue_id()
 
-        wrapper.gen_rc_msg(ran_func_dsc=func_def, ue_id=ue_id)
+        wrapper.gen_rc_msg(ran_func_dsc=func_def, ue_id=ue_id,ctrl_style_id=ctrl_style_id)
         wrapper.print_ctrl_req()
         
         rc_ctrl_req_enc = wrapper.encode()

@@ -136,20 +136,11 @@ class RCControlReqWrapper():
 
         return ret
 
-    def print_ctrl_req(self):
-        # Header
-        print("--- RC Control Request Header ---")
-        print("Format: {}".format(self.control_req.hdr.format.value))
-        print("Style: {}".format(self.control_req.hdr.union.frmt_1.ric_style_type))
-        print("Control Action ID: {}".format(self.control_req.hdr.union.frmt_1.ctrl_act_id))
-
-        # Message
-        print("--- RC Control Request Msg ---")
-        print("Format: {}".format(self.control_req.msg.format.value))
+    def print_radio_bearer_control(self):
+        print("Radio Bearer Control")
         for i in range(0, self.control_req.msg.union.frmt_1.sz_ran_param):
-            print("Parameter: {}".format(qos_ran_parameter_id_to_name[self.control_req.msg.union.frmt_1.ran_param[i].ran_param_id]))
-            print("Val type: {}".format(self.control_req.msg.union.frmt_1.ran_param[i].ran_param_val.type.value))
-            
+            print("Ran Param ID: {}".format(self.control_req.msg.union.frmt_1.ran_param[i].ran_param_id))
+            print("Ran Param Val Type: {}".format(self.control_req.msg.union.frmt_1.ran_param[i].ran_param_val.type.value)) 
             if qos_ran_parameter_id_to_name[self.control_req.msg.union.frmt_1.ran_param[i].ran_param_id] == "DRB ID":
                 if self.control_req.msg.union.frmt_1.ran_param[i].ran_param_val.type.value == ran_parameter_val_type_e.ELEMENT_KEY_FLAG_TRUE_RAN_PARAMETER_VAL_TYPE:
                     print("Flag true drb change: {}".format(self.control_req.msg.union.frmt_1.ran_param[i].ran_param_val.union.flag_true.contents.union.int_ran))
@@ -171,6 +162,27 @@ class RCControlReqWrapper():
                                 print("--> Flag False Param Value {}".format(lst.lst_ran_param[j].ran_param_struct.ran_param_struct[k].ran_param_val.union.flag_false.contents.union.int_ran))
 
                             print("--")
+    
+    def print_radio_resource_allocation_control(self):
+        print("Radio Resource Allocation Control")
+        print("Detailed information not implemented yet for this type of control")
+
+    def print_ctrl_req(self):
+        # Header
+        print("--- RC Control Request Header ---")
+        print("Format: {}".format(self.control_req.hdr.format.value))
+        print("Style: {}".format(self.control_req.hdr.union.frmt_1.ric_style_type))
+        print("Control Action ID: {}".format(self.control_req.hdr.union.frmt_1.ctrl_act_id))
+
+        # TODO: Needs refactoring based on the type of control action
+        # Message 
+        print("--- RC Control Request Msg ---")
+        print("Format: {}".format(self.control_req.msg.format.value))
+        if self.control_req.hdr.union.frmt_1.ric_style_type == ric_style_types["Radio Bearer Control"]:
+            self.print_radio_bearer_control()
+        elif self.control_req.hdr.union.frmt_1.ric_style_type == ric_style_types["Radio Resource Allocation Control"]:
+            self.print_radio_resource_allocation_control()
+        
 
     def fill_DRB_param(self, index):
         self.control_req.msg.union.frmt_1.ran_param[index].ran_param_id = qos_ran_parameter_ids["DRB ID"]
@@ -340,7 +352,7 @@ class RCControlReqWrapper():
         # Filling parameter
         min_prb_policy_ratio = ctrl.ran_parameter_value_t()
         min_prb_policy_ratio.type = ran_parameter_value_e.INTEGER_RAN_PARAMETER_VALUE
-        min_prb_policy_ratio.union.int_ran = 10  # FIXME: Replace with the actual value
+        min_prb_policy_ratio.union.int_ran = 20  # FIXME: Replace with the actual value
         rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_val.union.flag_false = ctypes.pointer(min_prb_policy_ratio)
         
         # Third Element of the structure: >>Max PRB Policy Ratio
@@ -349,7 +361,7 @@ class RCControlReqWrapper():
         # Filling parameter
         max_prb_policy_ratio = ctrl.ran_parameter_value_t()
         max_prb_policy_ratio.type = ran_parameter_value_e.INTEGER_RAN_PARAMETER_VALUE
-        max_prb_policy_ratio.union.int_ran = 12  # FIXME: Replace with the actual value
+        max_prb_policy_ratio.union.int_ran = 80  # FIXME: Replace with the actual value
         rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[2].ran_param_val.union.flag_false = ctypes.pointer(max_prb_policy_ratio)
 
         # Third Element of the structure: >>Dedicated PRB Policy Ratio
@@ -358,13 +370,29 @@ class RCControlReqWrapper():
         # Filling parameter
         ded_prb_policy_ratio = ctrl.ran_parameter_value_t()
         ded_prb_policy_ratio.type = ran_parameter_value_e.INTEGER_RAN_PARAMETER_VALUE
-        ded_prb_policy_ratio.union.int_ran = 11  # FIXME: Replace with the actual value
+        ded_prb_policy_ratio.union.int_ran = 5  # FIXME: Replace with the actual value
         rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[3].ran_param_val.union.flag_false = ctypes.pointer(ded_prb_policy_ratio)
 
         self.control_req.msg.union.frmt_1.ran_param[0].ran_param_val.union.lst = ctypes.pointer(rrm_policy_ratio_list)
 
 
-    def gen_rc_msg(self, ran_func_dsc: funcdef.RCFuncDef, ue_id: hdr.ue_id_e2sm_t=None):
+    def generate_control_request(self, style, ue_id: hdr.ue_id_e2sm_t=None, ctrl_style_id: int=1):
+        """
+        This method generates a control request based on the style selected.
+        It fills the control request with the appropriate parameters and encodes it.
+        """
+        # Only Radio Bearer Control Supported
+        style_bytes = bytes(np.ctypeslib.as_array(style.name.buf, shape = (style.name.len,)))
+        style_decoded_string = style_bytes.decode('utf-8')
+        if ctrl_style_id == ric_style_types["Radio Bearer Control"] and style_decoded_string == "Radio Bearer Control":
+            self.generate_radio_bearer_control_msg(style=style, style_decoded=style_decoded_string, ue_id=ue_id)
+        elif ctrl_style_id == ric_style_types["Radio Resource Allocation Control"] and style_decoded_string == "Radio Resource Allocation Control":
+            self.generate_radio_resource_allocation_control_frmt_1(style=style, style_decoded=style_decoded_string, ue_id=ue_id)
+        
+
+
+        
+    def gen_rc_msg(self, ran_func_dsc: funcdef.RCFuncDef, ue_id: hdr.ue_id_e2sm_t=None, ctrl_style_id: int=1):
         # FIXME Add other parameters
         if not ran_func_dsc.ctrl:
             # TODO Add error message
@@ -374,28 +402,17 @@ class RCControlReqWrapper():
 
         self.control_req.hdr = hdr.RCControlHdr()
         self.control_req.msg = ctrl.RCControlMsg()
-        
+
         for i in range(0, ctrl_descr.sz_seq_ctrl_style):
             style = ctrl_descr.seq_ctrl_style[i]
-            
-            # Only Radio Bearer Control Supported
-            style_bytes = bytes(np.ctypeslib.as_array(style.name.buf, shape = (style.name.len,)))
-            style_decoded_string = style_bytes.decode('utf-8')
-            if style_decoded_string == "Radio Bearer Control":
-                self.generate_radio_bearer_control_msg(style=style, style_decoded=style_decoded_string, ue_id=ue_id)
-            elif style_decoded_string == "Radio Resource Allocation Control":
-                self.generate_radio_resource_allocation_control_frmt_1(style=style, style_decoded=style_decoded_string, ue_id=ue_id)
-            else:
-                # TODO add error message
-                print("Not Supported Style {}".format(style_decoded_string))
-                return
-
-            
+            self.generate_control_request(style, ue_id=ue_id, ctrl_style_id=ctrl_style_id)
+        
 
 
     def generate_radio_bearer_control_msg(self,  style: funcdef.seq_ctrl_style_t, style_decoded, ue_id: hdr.ue_id_e2sm_t=None):
+        print("Generating Radio Bearer Control Message")
         self.control_req.hdr.format = style.hdr
-            
+        
         if self.control_req.hdr.format.value != e2sm_rc_ctrl_hdr_e.FORMAT_1_E2SM_RC_CTRL_HDR:
             print("Not supported header format")
             return
@@ -446,6 +463,7 @@ class RCControlReqWrapper():
         """
         format 1 control for each ue, meaning prb allocation for each ue(?)
         """
+        print("Generating Radio Resource Allocation Control Message")
         self.control_req.hdr.format = e2sm_rc_ctrl_hdr_e.FORMAT_1_E2SM_RC_CTRL_HDR
 
         self.control_req.hdr.union.frmt_1 = hdr.e2sm_rc_ctrl_hdr_frmt_1_t()
@@ -478,7 +496,7 @@ class RCControlReqWrapper():
                 return
             self.control_req.hdr.union.frmt_1.ctrl_act_id = control_action_ids_2[seq_ctrl_act_name]
             print("format 1 sz {}".format(seq_ctrl_act[j].sz_seq_assoc_ran_param))
-            self.control_req.msg.union.frmt_1.sz_ran_param = sz_seq_ctrl_act
+            self.control_req.msg.union.frmt_1.sz_ran_param = sz_seq_ctrl_act # with srsRAN it could be 12, as the ran function description is not well formatted
             #seq_ctrl_act[j].sz_seq_assoc_ran_param
             # Creating ran parameter array
             RanParamArr = ctrl.seq_ran_param_t * self.control_req.msg.union.frmt_1.sz_ran_param
