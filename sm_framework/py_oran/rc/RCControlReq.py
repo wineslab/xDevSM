@@ -11,7 +11,7 @@ from sm_framework.lib.library_wrapper import rc_lib, wrap_functions
 # Defined in Section 7.6.2.1 of the RC Service Model Specification
 control_action_ids_1 = {
     "DRB QoS Configuration": 1,
-    "QoS flow mapping configuration": 2,
+    "QoS flow mapping configuration": 2, # supported
     "Logical channel configuration": 3,
     "Radio admission control": 4,
     "DRB termination control": 5,
@@ -25,7 +25,13 @@ control_action_ids_2 = {
     "SPS parameters configuration": 3,
     "Configured grant control": 4,
     "CQI table configuration": 5,
-    "Slice-level PRB quota": 6
+    "Slice-level PRB quota": 6 # supported
+}
+
+control_action_ids_3 = {
+    "Handover Control": 1,
+    "Conditional Handover Control": 2,
+    "DAPS (Dual Active Protocol Stack) Handover Control": 3
 }
 
 # RIC Style Type for RIC Control Service: defined in SEction 7.6.1 of the RC Service Model Specification
@@ -87,7 +93,6 @@ class RCControlReqEncoded(ctypes.Structure):
         ("msg_encoded", ByteArray)
     ]
 
-# TODO add wrapper for encode/decode procedure and memory management
 class RCControlReqWrapper():
     def __init__(self):
         self.control_req: RCControlReq =  RCControlReq() # This should be built by using methods defined in this class
@@ -274,27 +279,28 @@ class RCControlReqWrapper():
         rrm_policy_ratio_list.lst_ran_param = lst_param_type()
         
         # >RRM Policy Ratio Group -> 2
-        rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.sz_ran_param_struct = 4 # RRM Policy, Min, Max PRB Policy Ratio and Dedicated PRB Policy Ratio
-        
-        # We should have had here something like:
-        # rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_id = prb_quota_slice_level_ids["RRM Policy Ratio Group"]
-        # However, we do not have it in the structure, as openairinterface encoder does not support this: https://gitlab.eurecom.fr/mosaic5g/flexric/-/blob/dev/src/sm/rc_sm/enc/rc_enc_asn.c?ref_type=heads#L1107
-        # The highlited by oaia is also present in RC V3.0
-
-        # >> allocating memory
-        lst_param_struct_type = ctrl.seq_ran_param_t * rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.sz_ran_param_struct
-        rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct = lst_param_struct_type()
-
-        # First Element of the structure: >>RRM Policy
-        rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[0].ran_param_id = prb_quota_slice_level_ids["RRM Policy"]
+        rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.sz_ran_param_struct = 1
+        intern_strct_type = ctrl.seq_ran_param_t * rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.sz_ran_param_struct
+        rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct = intern_strct_type()
+        rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[0].ran_param_id = prb_quota_slice_level_ids["RRM Policy Ratio Group"]
         rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[0].ran_param_val.type = ran_parameter_val_type_e.STRUCTURE_RAN_PARAMETER_VAL_TYPE
-        # Allocating struct
         rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[0].ran_param_val.union.strct = ctypes.pointer(ctrl.ran_param_struct_t())
-        rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[0].ran_param_val.union.strct.contents.sz_ran_param_struct = 1 # Only one RRM Policy Member List
-        rrm_policy_type = ctrl.seq_ran_param_t * rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[0].ran_param_val.union.strct.contents.sz_ran_param_struct
-        rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[0].ran_param_val.union.strct.contents.ran_param_struct = rrm_policy_type()
+        ratio_group = rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[0].ran_param_val.union.strct.contents
+        ratio_group.sz_ran_param_struct = 4  # We have 4 elements in the structure
+        ratio_group_type = ctrl.seq_ran_param_t * ratio_group.sz_ran_param_struct
+        ratio_group.ran_param_struct = ratio_group_type()
         
-        rrm_policy = rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[0].ran_param_val.union.strct.contents.ran_param_struct[0]
+
+        # # First Element of the structure: >>RRM Policy
+        ratio_group.ran_param_struct[0].ran_param_id = prb_quota_slice_level_ids["RRM Policy"]
+        ratio_group.ran_param_struct[0].ran_param_val.type = ran_parameter_val_type_e.STRUCTURE_RAN_PARAMETER_VAL_TYPE
+        # Allocating struct
+        ratio_group.ran_param_struct[0].ran_param_val.union.strct = ctypes.pointer(ctrl.ran_param_struct_t())
+        ratio_group.ran_param_struct[0].ran_param_val.union.strct.contents.sz_ran_param_struct = 1 # Only one RRM Policy Member List
+        rrm_policy_type = ctrl.seq_ran_param_t * ratio_group.ran_param_struct[0].ran_param_val.union.strct.contents.sz_ran_param_struct
+        ratio_group.ran_param_struct[0].ran_param_val.union.strct.contents.ran_param_struct = rrm_policy_type()
+        
+        rrm_policy = ratio_group.ran_param_struct[0].ran_param_val.union.strct.contents.ran_param_struct[0]
         rrm_policy.ran_param_id = prb_quota_slice_level_ids["RRM Policy Member List"]
         rrm_policy.ran_param_val.type = ran_parameter_val_type_e.LIST_RAN_PARAMETER_VAL_TYPE
         # Inside RRM Policy: >>RRM Policy Member List
@@ -347,65 +353,35 @@ class RCControlReqWrapper():
         rrm_policy.ran_param_val.union.lst = rrm_policy_member_list
 
         # Second Element of the structure: >>Min PRB Policy Ratio
-        rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_id = prb_quota_slice_level_ids["Min PRB Policy Ratio"]
-        rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_val.type = ran_parameter_val_type_e.ELEMENT_KEY_FLAG_FALSE_RAN_PARAMETER_VAL_TYPE
+        ratio_group.ran_param_struct[1].ran_param_id = prb_quota_slice_level_ids["Min PRB Policy Ratio"]
+        ratio_group.ran_param_struct[1].ran_param_val.type = ran_parameter_val_type_e.ELEMENT_KEY_FLAG_FALSE_RAN_PARAMETER_VAL_TYPE
         # Filling parameter
         min_prb_policy_ratio = ctrl.ran_parameter_value_t()
         min_prb_policy_ratio.type = ran_parameter_value_e.INTEGER_RAN_PARAMETER_VALUE
         min_prb_policy_ratio.union.int_ran = 20  # FIXME: Replace with the actual value
-        rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_val.union.flag_false = ctypes.pointer(min_prb_policy_ratio)
+        ratio_group.ran_param_struct[1].ran_param_val.union.flag_false = ctypes.pointer(min_prb_policy_ratio)
         
         # Third Element of the structure: >>Max PRB Policy Ratio
-        rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[2].ran_param_id = prb_quota_slice_level_ids["Max PRB Policy Ratio"]
-        rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[2].ran_param_val.type = ran_parameter_val_type_e.ELEMENT_KEY_FLAG_FALSE_RAN_PARAMETER_VAL_TYPE
+        ratio_group.ran_param_struct[2].ran_param_id = prb_quota_slice_level_ids["Max PRB Policy Ratio"]
+        ratio_group.ran_param_struct[2].ran_param_val.type = ran_parameter_val_type_e.ELEMENT_KEY_FLAG_FALSE_RAN_PARAMETER_VAL_TYPE
         # Filling parameter
         max_prb_policy_ratio = ctrl.ran_parameter_value_t()
         max_prb_policy_ratio.type = ran_parameter_value_e.INTEGER_RAN_PARAMETER_VALUE
         max_prb_policy_ratio.union.int_ran = 80  # FIXME: Replace with the actual value
-        rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[2].ran_param_val.union.flag_false = ctypes.pointer(max_prb_policy_ratio)
+        ratio_group.ran_param_struct[2].ran_param_val.union.flag_false = ctypes.pointer(max_prb_policy_ratio)
 
         # Third Element of the structure: >>Dedicated PRB Policy Ratio
-        rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[3].ran_param_id = prb_quota_slice_level_ids["Dedicated PRB Policy Ratio"]
-        rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[3].ran_param_val.type = ran_parameter_val_type_e.ELEMENT_KEY_FLAG_FALSE_RAN_PARAMETER_VAL_TYPE
+        ratio_group.ran_param_struct[3].ran_param_id = prb_quota_slice_level_ids["Dedicated PRB Policy Ratio"]
+        ratio_group.ran_param_struct[3].ran_param_val.type = ran_parameter_val_type_e.ELEMENT_KEY_FLAG_FALSE_RAN_PARAMETER_VAL_TYPE
         # Filling parameter
         ded_prb_policy_ratio = ctrl.ran_parameter_value_t()
         ded_prb_policy_ratio.type = ran_parameter_value_e.INTEGER_RAN_PARAMETER_VALUE
         ded_prb_policy_ratio.union.int_ran = 5  # FIXME: Replace with the actual value
-        rrm_policy_ratio_list.lst_ran_param[0].ran_param_struct.ran_param_struct[3].ran_param_val.union.flag_false = ctypes.pointer(ded_prb_policy_ratio)
+        ratio_group.ran_param_struct[3].ran_param_val.union.flag_false = ctypes.pointer(ded_prb_policy_ratio)
 
         self.control_req.msg.union.frmt_1.ran_param[0].ran_param_val.union.lst = ctypes.pointer(rrm_policy_ratio_list)
 
 
-    def generate_control_request(self, style, ue_id: hdr.ue_id_e2sm_t=None, ctrl_style_id: int=1):
-        """
-        This method generates a control request based on the style selected.
-        It fills the control request with the appropriate parameters and encodes it.
-        """
-        # Only Radio Bearer Control Supported
-        style_bytes = bytes(np.ctypeslib.as_array(style.name.buf, shape = (style.name.len,)))
-        style_decoded_string = style_bytes.decode('utf-8')
-        if ctrl_style_id == ric_style_types["Radio Bearer Control"] and style_decoded_string == "Radio Bearer Control":
-            self.generate_radio_bearer_control_msg(style=style, style_decoded=style_decoded_string, ue_id=ue_id)
-        elif ctrl_style_id == ric_style_types["Radio Resource Allocation Control"] and style_decoded_string == "Radio Resource Allocation Control":
-            self.generate_radio_resource_allocation_control_frmt_1(style=style, style_decoded=style_decoded_string, ue_id=ue_id)
-        
-
-
-        
-    def gen_rc_msg(self, ran_func_dsc: funcdef.RCFuncDef, ue_id: hdr.ue_id_e2sm_t=None, ctrl_style_id: int=1):
-        # FIXME Add other parameters
-        if not ran_func_dsc.ctrl:
-            # TODO Add error message
-            return
-        # self.control_req = RCControlReq()
-        ctrl_descr = ran_func_dsc.ctrl.contents 
-
-        self.control_req.hdr = hdr.RCControlHdr()
-        self.control_req.msg = ctrl.RCControlMsg()
-
-        for i in range(0, ctrl_descr.sz_seq_ctrl_style):
-            style = ctrl_descr.seq_ctrl_style[i]
-            self.generate_control_request(style, ue_id=ue_id, ctrl_style_id=ctrl_style_id)
         
 
 
@@ -504,6 +480,50 @@ class RCControlReqWrapper():
 
             self.rrm_prb_policy_ratio_handler(seq_ctrl_act[j], seq_ctrl_act[j].sz_seq_assoc_ran_param)
 
+    def generate_connected_mode_mobility_control_frmt_1(self, style: funcdef.seq_ctrl_style_t, style_decoded, ue_id: hdr.ue_id_e2sm_t=None):
+        print("Generating Connected mode mobility control Message")
+        self.control_req.hdr.format = e2sm_rc_ctrl_hdr_e.FORMAT_1_E2SM_RC_CTRL_HDR
+        self.control_req.hdr.union.frmt_1 = hdr.e2sm_rc_ctrl_hdr_frmt_1_t()
+        self.control_req.hdr.union.frmt_1.ric_style_type = ric_style_types[style_decoded]
+        if ue_id is None:
+            print("UE ID not provided")
+            return
+        self.control_req.hdr.union.frmt_1.ue_id = ue_id # we need more information about the UE ID type, as it is not always the same
+        
+    
+    def generate_control_request(self, style, ue_id: hdr.ue_id_e2sm_t=None, ctrl_style_id: int=1):
+        """
+        This method generates a control request based on the style selected.
+        It fills the control request with the appropriate parameters and encodes it.
+        """
+        # Only Radio Bearer Control Supported
+        style_bytes = bytes(np.ctypeslib.as_array(style.name.buf, shape = (style.name.len,)))
+        style_decoded_string = style_bytes.decode('utf-8')
+        if ctrl_style_id == ric_style_types["Radio Bearer Control"] and style_decoded_string == "Radio Bearer Control":
+            self.generate_radio_bearer_control_msg(style=style, style_decoded=style_decoded_string, ue_id=ue_id)
+        elif ctrl_style_id == ric_style_types["Radio Resource Allocation Control"] and style_decoded_string == "Radio Resource Allocation Control":
+            self.generate_radio_resource_allocation_control_frmt_1(style=style, style_decoded=style_decoded_string, ue_id=ue_id)
+        elif ctrl_style_id == ric_style_types["Connected mode mobility control"] and style_decoded_string == "Connected mode mobility control":
+            print("Connected mode mobility control not implemented yet")
+            self.generate_connected_mode_mobility_control_frmt_1(style=style, style_decoded=style_decoded_string, ue_id=ue_id)
+        
+
+
+        
+    def gen_rc_msg(self, ran_func_dsc: funcdef.RCFuncDef, ue_id: hdr.ue_id_e2sm_t=None, ctrl_style_id: int=1):
+        # FIXME Add other parameters
+        if not ran_func_dsc.ctrl:
+            # TODO Add error message
+            return
+        # self.control_req = RCControlReq()
+        ctrl_descr = ran_func_dsc.ctrl.contents 
+
+        self.control_req.hdr = hdr.RCControlHdr()
+        self.control_req.msg = ctrl.RCControlMsg()
+
+        for i in range(0, ctrl_descr.sz_seq_ctrl_style):
+            style = ctrl_descr.seq_ctrl_style[i]
+            self.generate_control_request(style, ue_id=ue_id, ctrl_style_id=ctrl_style_id)
         
 
 
