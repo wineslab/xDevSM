@@ -252,6 +252,8 @@ class XappKpmFrame(RMRXapp):
         self.__sub_failed_callback = handler
 
     def subs_response_cb(self, name, path, data, ctype):
+        response = ricrest.initResponse()
+        response['payload'] = ("{}")
         response_json = json.loads(data)
         self.logger.info(response_json)
         if len(response_json["SubscriptionInstances"][0]["ErrorCause"]) > 0 and response_json["SubscriptionInstances"][0]["ErrorCause"] != " ":
@@ -260,15 +262,15 @@ class XappKpmFrame(RMRXapp):
             if not self.__sub_failed_callback is None:
                 self.__sub_failed_callback(response_json)
         else:
-            self.logger.info("called response handler: subscription successfull".format(response_json))
-
-        response = ricrest.initResponse()
-        response['payload'] = ("{}")
+            self.logger.info("called response handler subscription successfull! Response: {}".format(response_json))
+            response['payload'] = json.dumps(response_json)
+       
         return response
     
     def subscribe(self, gnb, ev_trigger: Tuple[int, float], func_def: dict, action_type=Values.ACTION_TYPE, ran_period_ms=1000, sst=1, sd=0):
 
         self.logger.info("Preparing subscription for gnb: {}".format(gnb.inventory_name))
+        
 
         if self.subscriber.ResponseHandler(self.subs_response_cb, self.server) is not True:
             self.logger.error("Error when trying to set the subscription reponse callback")
@@ -305,7 +307,7 @@ class XappKpmFrame(RMRXapp):
         
 
         
-        self.logger.info("sending subscription..")
+        self.logger.info("POST request for subscription to {}".format(self.uri_subscriptions))
         subscription_params = self.subscriber.SubscriptionParams(subscription_id=None,
                                         client_endpoint=client_endpoint,
                                         meid=gnb.inventory_name,                          
@@ -401,11 +403,12 @@ class XappKpmFrame(RMRXapp):
         if self.subscription_id is None:
             self.logger.info("Not subscribed - terminating...")
         else:
-            self.logger.info("unsubscribing...")
-            # self.unsubscribe() -- not supported in oai
+            for key in self.subscription_id.keys():
+                self.logger.info("Unsubscribing from gnb: {}, subid: {}, DELETE {}".format(key, self.subscription_id[key], self.uri_subscriptions))
+                # self.subscriber.Unsubscribe(subs_id=str(self.subscription_id[key]))#-- not supported in oai
         self.stop() #-- to fix registration
         self.logger.info("Bye!")
-        sys.exit()
+        # sys.exit()
 
     def terminate(self, signum, frame):
         self.terminating_xapp()
