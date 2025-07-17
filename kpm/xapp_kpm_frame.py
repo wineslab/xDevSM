@@ -1,25 +1,21 @@
-import os
-import signal
 import json
-import requests
-import sys
-import copy
 from typing import Tuple
 
 # osc xappframe
-from ricxappframe.xapp_frame import RMRXapp, rmr
+from ricxappframe.xapp_frame import rmr
 from ricxappframe.subsclient.models.event_trigger_definition import EventTriggerDefinition
 from ricxappframe.e2ap.asn1 import IndicationMsg
 from ricxappframe.util.constants import Constants
 import ricxappframe.xapp_rest as ricrest
-from mdclogpy import Level
-
 
 # utility
 import utils.xapp_sub as subscribe
 from utils.constants import Values
 import utils.utility as utility
 
+
+# Base Custom RMRXapp
+from base_rmr_xapp import BaseRMRXapp
 
 # sm framework
 import sm_framework.py_oran.kpm.function_definition_builder as function_definition_builder
@@ -29,98 +25,18 @@ import sm_framework.py_oran.kpm.KpmFunctionDef as KpmFunctionDef
 from sm_framework.py_oran.kpm.enums import ue_id_e2sm_e
 
 
-class XappKpmFrame(RMRXapp):
+class XappKpmFrame(BaseRMRXapp):
 
     def __init__(self, address):
-        self.rmr_port = 4560
-    
-        super().__init__(default_handler=self.__default_handler, rmr_port=self.rmr_port, post_init=self._post_init, rmr_wait_for_ready=True)
-        
-        self.logger.set_level(Level.DEBUG)
-
-        self.address = address        
+        super().__init__(address, entrypoint=None)
         self.subscription_id = {}
-
-        # Getting ports from config file
-        messaging_format = self._config_data.get("messaging")
-        self.http_port, self.rmr_svc_port = self.loading_ports(messaging_format)
-        if self.http_port is None:
-            self.logger.error("http port not found: setting default to 8080")
-            self.http_port = 8080
-        # TODO --> This cannot be made dynamic right now. We should change where the config file is read            
-        # elif self.rmr_port is None: 
-        #     self.logger.error("rmr port not found: setting default to 4560")
-        #     self.rmr_port = 4560
-        elif self.rmr_svc_port is None: 
-            self.logger.error("rmr svc port not found: setting default to 4561")
-            self.rmr_svc_port = 4561
-        
-        self.logger.info("http port: {}, rmr port: {}, rmr svc port: {}".format(self.http_port, self.rmr_port, self.rmr_svc_port))
-
-        # Getting plt namespace
-        self.pltnamespace = os.environ.get("PLT_NAMESPACE")
-        if self.pltnamespace is None:
-            self.pltnamespace = Constants.DEFAULT_PLT_NS
-        
-        # getting xapp name
-        self.xapp_name = self._config_data.get("name")
-
-        # Getting app namespace
-        self.app_namespace = self._config_data.get("APP_NAMESPACE")
-        if self.app_namespace is None:
-            self.app_namespace = Constants.DEFAULT_XAPP_NS
-
-
-        self.uri_subscriptions = Values.GENERAL_PATH.format(self.pltnamespace, Values.SUBSCRIPTION_SERVICE, self.pltnamespace, Values.SUBSCRIPTION_PORT) + "/ric/v1/subscriptions"
-
-        # Subscriber
-        self.subscriber = subscribe.NewSubscriber(uri=self.uri_subscriptions, rmr_port=self.rmr_port)
-
-        # HTTP Server: create the thread HTTP server and set the uri handler callbacks
-        self.server = ricrest.ThreadedHTTPServer(self.address, self.http_port)
-
-        self.__ind_msg_callback = None
-        self.__sub_failed_callback = None
-
-        self.server.handler.add_handler(self.server.handler, "GET", "config", "/ric/v1/config", self.__config_get_handler)
-        self.server.handler.add_handler(self.server.handler, "GET", "healthAlive", "/ric/v1/health/alive", self.__healthy_get_alive_handler)
-        self.server.handler.add_handler(self.server.handler, "GET", "healthReady", "/ric/v1/health/ready", self.__healthyGetReadyHandler)
-
-        signal.signal(signal.SIGINT, self.terminate)
-        signal.signal(signal.SIGTERM, self.terminate)
-
-        # start the server
-        self.server.start()
-
-        self.e2mgr_link = Values.GENERAL_PATH.format(self.pltnamespace, Values.E2MGR_SERVICE, self.pltnamespace, Values.E2MGR_PORT) + "/v1/nodeb/"
-
-        # self.logger.info("Initializing xApp")
-
-        os.environ["RMR_SRC_ID"] = self.xapp_name
-        os.environ["RMR_LOG_VLEVEL"] = str(4)
-        os.environ["RMR_RTG_SVC"] = str(self.rmr_svc_port)
-
         self.kpm_func_def_wrapper = KpmFunctionDef.KpmFuncDefArrWrapper(hex="")
-
-    def __config_get_handler(self, name, path, data, ctype):
-        response = ricrest.initResponse()
-        response['payload'] = json.dumps(self._config_data)
-        return response
+        
+        # Subscription info - indication
+        self.uri_subscriptions = Values.GENERAL_PATH.format(self.pltnamespace, Values.SUBSCRIPTION_SERVICE, self.pltnamespace, Values.SUBSCRIPTION_PORT) + "/ric/v1/subscriptions"
+        self.subscriber = subscribe.NewSubscriber(uri=self.uri_subscriptions, rmr_port=self.rmr_port)
     
-    def __healthy_get_alive_handler(self, name, path, data, ctype): 
-        response = ricrest.initResponse()
-        response['payload'] = ("{'status': 'alive'}")
-        return response
-    
-    def __healthyGetReadyHandler(self, name, path, data, ctype):
-        response = ricrest.initResponse()
-        response['payload'] = ("{'status': 'ready'}")
-        return response
-    
-    def _post_init(self, xapp):
-        xapp.logger.info("xApp Initialized")
-
-    def __default_handler(self, xapp, summary, sbuf):
+    def handle(self, xapp, summary, sbuf):
 
         xapp.logger.info("received: {}".format(summary))
 
@@ -133,52 +49,6 @@ class XappKpmFrame(RMRXapp):
         
         xapp.rmr_free(sbuf)
     
-
-    def get_ran_info(self, e2node):
-        """
-        Get E2Node related info. Used to get RAN function description
-
-        Parameters:
-        ----------
-        gnb (json obj): E2 node
-
-        Returns:
-        ----------
-        json object containing E2 node related information
-        """
-        self.logger.info("Getting gnb {} info".format(e2node.inventory_name))
-        uri_e2_mgr = self.e2mgr_link + e2node.inventory_name
-
-        response = requests.get(uri_e2_mgr)
-        return response.json()
-
-    def get_ran_function_description(self, json_ran_info, ran_func_id=2) -> KpmFunctionDef.KpmFuncDefArr:
-        """
-        Get decoded ran function description
-        Parameters:
-        ----------
-        json_ran_info (json obj): json object obtained when by the get_ran_info function
-        ran_func_id(int): by default is 2 (kpm)
-
-        Returns:
-        ----------
-        KpmFuncDefArrWrapper - wrapper of KpmFunctionDef object managing memory deallocation
-        """
-        if not json_ran_info:
-            self.logger.info("json_ran_info object None value not admitted!")
-            return
-
-        for ran_func in json_ran_info["gnb"]["ranFunctions"]: 
-            if ran_func["ranFunctionId"] == ran_func_id:
-                # selecting kpm action
-                ran_function_definition = ran_func["ranFunctionDefinition"]
-                break
-        self.logger.info(ran_function_definition)
-        # Decoding RAN function Definition
-        self.kpm_func_def_wrapper.set_hex(hex=ran_function_definition)
-        # func_def_obj = KpmFunctionDef.decode(hex=ran_function_definition)
-        func_def_obj = self.kpm_func_def_wrapper.decode()
-        return func_def_obj
 
     def _handle_indication(self, xapp, summary):
         
@@ -381,6 +251,31 @@ class XappKpmFrame(RMRXapp):
         """
         return self.xapp_name
     
+    def get_ran_function_description(self, json_ran_info):
+        """
+        Get decoded ran function description
+        Parameters:
+        ----------
+        json_ran_info (json obj): json object obtained when by the get_ran_info function
+        ran_func_id(int): by default is 3 (rc)
+
+        """
+        if not json_ran_info:
+            self.logger.info("json_ran_info object None value not admitted!")
+            return
+
+        for ran_func in json_ran_info["gnb"]["ranFunctions"]: 
+            if ran_func["ranFunctionId"] == 2:
+                # selecting kpm action
+                ran_function_definition = ran_func["ranFunctionDefinition"]
+                break
+        self.logger.info(ran_function_definition)
+        # Decoding RAN function Definition
+        self.kpm_func_def_wrapper.set_hex(hex=ran_function_definition)
+        
+        func_def_obj = self.kpm_func_def_wrapper.decode()
+        return func_def_obj
+
     def loading_ports(self, messaging_format):
         http_port = None
         rmr_port = None
@@ -398,20 +293,16 @@ class XappKpmFrame(RMRXapp):
         return http_port, rmr_svc_port
     
 
-    def terminating_xapp(self):
+    def terminating_xapp(self, signum, frame):
         self.logger.info("Received termination signal")
         if self.subscription_id is None:
             self.logger.info("Not subscribed - terminating...")
         else:
             for key in self.subscription_id.keys():
                 self.logger.info("Unsubscribing from gnb: {}, subid: {}, DELETE {}".format(key, self.subscription_id[key], self.uri_subscriptions))
-                # self.subscriber.Unsubscribe(subs_id=str(self.subscription_id[key]))#-- not supported in oai
-        self.stop() #-- to fix registration
+                # self.subscriber.Unsubscribe(subs_id=str(self.subscription_id[key]))#-- not supported in by different ran software
+        self.stop()
         self.logger.info("Bye!")
-        # sys.exit()
-
-    def terminate(self, signum, frame):
-        self.terminating_xapp()
 
     def logic(self):
         pass

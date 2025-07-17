@@ -105,7 +105,6 @@ class XappRCFrame(RMRXapp):
         xapp.logger.info("xApp Initialized")
         
     def __default_handler(self, xapp, summary, sbuf):
-
         xapp.logger.info("received: {}".format(summary))
         if summary[rmr.RMR_MS_MSG_TYPE] == Values.RIC_CONTROL_ACK:
             xapp.logger.info("Received control ack")
@@ -217,7 +216,7 @@ class XappRCFrame(RMRXapp):
         self.logger.info("Received termination signal")
         self.xapp_shutdown()
         self.logger.info("Bye!")
-        sys.exit()
+        # sys.exit()
 
     def get_mock_du_ue_id(self) -> ctrlhdr.ue_id_e2sm_t:
         ue_id = ctrlhdr.ue_id_e2sm_t()
@@ -232,7 +231,7 @@ class XappRCFrame(RMRXapp):
         
         return ue_id
     
-    def get_mock_ue_id(self) -> ctrlhdr.ue_id_e2sm_t:
+    def get_mock_ue_id(self, ran_ue_id: ctypes.c_ulong=1) -> ctrlhdr.ue_id_e2sm_t:
         ue_id = ctrlhdr.ue_id_e2sm_t()
         ue_id.type = ctrlhdr.ue_id_e2sm_e.GNB_UE_ID_E2SM
         
@@ -253,7 +252,7 @@ class XappRCFrame(RMRXapp):
 
         gnb_mono.gnb_cu_ue_f1ap_lst_len = 0
         gnb_mono.gnb_cu_cp_ue_e1ap_lst_len = 0
-        gnb_mono.ran_ue_id = ctypes.pointer(ctypes.c_ulong(1))
+        gnb_mono.ran_ue_id = ctypes.pointer(ctypes.c_ulong(ran_ue_id))
 
         # gnb_pointer = ctypes.pointer(gnb_mono)
 
