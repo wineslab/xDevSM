@@ -1,5 +1,6 @@
 import requests
 import ctypes
+import numpy as np
 
 # osc xappframe
 from ricxappframe.xapp_frame import rmr
@@ -22,6 +23,8 @@ class RCControlBase(BaseRMRXapp):
         super().__init__(address, entrypoint=entrypoint)
         self.rc_function_def_wrapper = funcdef.RCFuncDefWrapper(hex="")
         self.wrapper = ctrlReq.RCControlReqWrapper()
+        self.service_style_name = None
+        self.style = None
         self.add_rmr_rule()
     
     
@@ -59,9 +62,60 @@ class RCControlBase(BaseRMRXapp):
         
         func_def_obj = self.rc_function_def_wrapper.decode()
         return func_def_obj
-    
-    def generate_send_control_request(self, *args, **kwargs):
-        """Depend on the control request."""
+
+    def send_control_request(self, e2_node_id, ran_func_dsc: funcdef.RCFuncDef, ue_id=None):
+        """
+        Sends a Control Request.
+
+        Parameters:
+        - e2_node_id: Target E2 node identifier
+        - ran_func_dsc: Decoded RC function definition
+        - ue_id: Optional UE identifier; if None, uses a mock one
+        """
+        if ue_id is None:
+            self.logger.info("[warn] using mock ue_id")
+            ue_id = self.get_mock_ue_id()
+            # ue_id = self.get_mock_du_ue_id()
+            
+        # Ensure all required values are present
+        if not all([self.drb_id, self.qos_flow_id, self.qos_flow_mapping_indication]):
+            self.logger.error("Missing one or more required RB control parameters")
+            return
+
+        if not ran_func_dsc.ctrl:
+            # TODO Add error message
+            return
+        ctrl_descr = ran_func_dsc.ctrl.contents 
+        
+        self.style = next(
+        (
+            s for s in ctrl_descr.seq_ctrl_style[:ctrl_descr.sz_seq_ctrl_style]
+            if bytes(np.ctypeslib.as_array(s.name.buf, shape=(s.name.len,))).decode('utf-8') == self.service_style_name),
+            None
+        )
+
+        if self.style is None:
+            self.logger.error("{} style not supported".format(self.service_style_name))
+            return
+
+        self.logger.info("{} style supported generating message".format(self.service_style_name))
+
+        self.generate_control_request(ue_id=ue_id)
+
+        self.wrapper.print_ctrl_req()
+
+        rc_ctrl_req_enc = self.wrapper.encode()
+
+        hdr_byte_array = rc_ctrl_req_enc.hdr_encoded.to_bytes()
+        ctrl_msg_byte_array = rc_ctrl_req_enc.msg_encoded.to_bytes()
+
+        self.logger.info("hdr encoded: {}".format(hdr_byte_array))
+        self.logger.info("ctrl encoded: {}".format(ctrl_msg_byte_array))
+        self.send_control_request_rmr(e2_node_id=e2_node_id,
+                                        control_header=hdr_byte_array,
+                                        control_message=ctrl_msg_byte_array)
+
+    def generate_control_request(self, ue_id):
         pass
 
     def send_control_request_rmr(self, e2_node_id, control_header: bytes, control_message: bytes, call_process_id: bytes=b"", requestor_id=1, control_ack_request=1, request_sequence_number=0):

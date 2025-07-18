@@ -573,6 +573,9 @@ class RCControlReqWrapper():
         format 1 control for each ue, meaning prb allocation for each ue(?)
         """
         print("Generating Radio Resource Allocation Control Message")
+        self.control_req.hdr = hdr.RCControlHdr()
+        self.control_req.msg = ctrl.RCControlMsg()
+
         self.control_req.hdr.format = e2sm_rc_ctrl_hdr_e.FORMAT_1_E2SM_RC_CTRL_HDR
 
         self.control_req.hdr.union.frmt_1 = hdr.e2sm_rc_ctrl_hdr_frmt_1_t()
@@ -594,7 +597,7 @@ class RCControlReqWrapper():
         if not seq_ctrl_act:
             # TODO add error message
             return
-
+        
         for j in range(0, sz_seq_ctrl_act):
             # TODO We should not use the for loop but actually select the action given by the user (if not supported nothing happens)
             seq_ctrl_act_name_bytes = bytes(np.ctypeslib.as_array(seq_ctrl_act[j].name.buf, shape = (seq_ctrl_act[j].name.len,)))
