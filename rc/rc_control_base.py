@@ -76,11 +76,6 @@ class RCControlBase(BaseRMRXapp):
             self.logger.info("[warn] using mock ue_id")
             ue_id = self.get_mock_ue_id()
             # ue_id = self.get_mock_du_ue_id()
-            
-        # Ensure all required values are present
-        if not all([self.drb_id, self.qos_flow_id, self.qos_flow_mapping_indication]):
-            self.logger.error("Missing one or more required RB control parameters")
-            return
 
         if not ran_func_dsc.ctrl:
             # TODO Add error message

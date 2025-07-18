@@ -273,7 +273,8 @@ class RCControlReqWrapper():
             else:
                 print("QoS parameter not supported {}".format(ctrl_act.assoc_ran_param[0].id))
             
-    def rrm_prb_policy_ratio_handler(self, ctrl_act: funcdef.seq_ctrl_act_2_t, sz_ran_param: ctypes.c_size_t):
+    def rrm_prb_policy_ratio_handler(self, ctrl_act: funcdef.seq_ctrl_act_2_t, sz_ran_param: ctypes.c_size_t, plmn_identity: str, sst, sd, min_prb, max_prb, dedicated_prb):
+       
 
         param_name_bytes = bytes(np.ctypeslib.as_array(ctrl_act.assoc_ran_param[0].name.buf, shape=(ctrl_act.assoc_ran_param[0].name.len,)))
         param_name = param_name_bytes.decode('utf-8')
@@ -281,16 +282,15 @@ class RCControlReqWrapper():
 
         # FIXME -> make these as paramters
         PLMN = ByteArray()
-        PLMN.from_hex("00F110")
-        sst_value = 1
-        sd_value = 1 
+        PLMN.from_hex(plmn_identity)
+       
 
         # S-NSSAI encoding
-        sst_value = sst_value.to_bytes(1, byteorder='big')
+        sst_value = sst.to_bytes(1, byteorder='big')
         sst_byte_array = ByteArray()
         sst_byte_array.len = len(sst_value)
         sst_byte_array.buf = (ctypes.c_uint8 * len(sst_value))(*sst_value)
-        sd_value = sd_value.to_bytes(3, byteorder='big')
+        sd_value = sd.to_bytes(3, byteorder='big')
         sd_byte_array = ByteArray()
         sd_byte_array.len = len(sd_value)
         sd_byte_array.buf = (ctypes.c_uint8 * len(sd_value))(*sd_value)
@@ -386,7 +386,7 @@ class RCControlReqWrapper():
         # Filling parameter
         min_prb_policy_ratio = ctrl.ran_parameter_value_t()
         min_prb_policy_ratio.type = ran_parameter_value_e.INTEGER_RAN_PARAMETER_VALUE
-        min_prb_policy_ratio.union.int_ran = 20  # FIXME: Replace with the actual value
+        min_prb_policy_ratio.union.int_ran = min_prb
         ratio_group.ran_param_struct[1].ran_param_val.union.flag_false = ctypes.pointer(min_prb_policy_ratio)
         
         # Third Element of the structure: >>Max PRB Policy Ratio
@@ -395,7 +395,7 @@ class RCControlReqWrapper():
         # Filling parameter
         max_prb_policy_ratio = ctrl.ran_parameter_value_t()
         max_prb_policy_ratio.type = ran_parameter_value_e.INTEGER_RAN_PARAMETER_VALUE
-        max_prb_policy_ratio.union.int_ran = 80  # FIXME: Replace with the actual value
+        max_prb_policy_ratio.union.int_ran = max_prb
         ratio_group.ran_param_struct[2].ran_param_val.union.flag_false = ctypes.pointer(max_prb_policy_ratio)
 
         # Third Element of the structure: >>Dedicated PRB Policy Ratio
@@ -404,7 +404,7 @@ class RCControlReqWrapper():
         # Filling parameter
         ded_prb_policy_ratio = ctrl.ran_parameter_value_t()
         ded_prb_policy_ratio.type = ran_parameter_value_e.INTEGER_RAN_PARAMETER_VALUE
-        ded_prb_policy_ratio.union.int_ran = 5  # FIXME: Replace with the actual value
+        ded_prb_policy_ratio.union.int_ran = dedicated_prb
         ratio_group.ran_param_struct[3].ran_param_val.union.flag_false = ctypes.pointer(ded_prb_policy_ratio)
 
         self.control_req.msg.union.frmt_1.ran_param[0].ran_param_val.union.lst = ctypes.pointer(rrm_policy_ratio_list)
@@ -568,13 +568,16 @@ class RCControlReqWrapper():
 
         self.qos_flow_mapping_config_handler(seq_ctrl_act[index_supported], seq_ctrl_act[index_supported].sz_seq_assoc_ran_param, drb_id=drb_id, qos_flow_id=qos_flow_id, qos_flow_mapping_indication=qos_flow_mapping_indication)
 
-    def generate_radio_resource_allocation_control_frmt_1(self,  style: funcdef.seq_ctrl_style_t, style_decoded, ue_id: hdr.ue_id_e2sm_t=None):
+    def generate_radio_resource_allocation_control_frmt_1(self,  style: funcdef.seq_ctrl_style_t, ue_id: hdr.ue_id_e2sm_t, plmn_identity: str, sst: int, sd: int, min_prb: int, max_prb: int, dedicated_prb: int):
         """
-        format 1 control for each ue, meaning prb allocation for each ue(?)
+        radio reasource allocation format 1 control for each ue, meaning prb allocation for each ue
         """
         print("Generating Radio Resource Allocation Control Message")
         self.control_req.hdr = hdr.RCControlHdr()
         self.control_req.msg = ctrl.RCControlMsg()
+
+        style_bytes = bytes(np.ctypeslib.as_array(style.name.buf, shape = (style.name.len,)))
+        style_decoded = style_bytes.decode('utf-8')
 
         self.control_req.hdr.format = e2sm_rc_ctrl_hdr_e.FORMAT_1_E2SM_RC_CTRL_HDR
 
@@ -597,25 +600,30 @@ class RCControlReqWrapper():
         if not seq_ctrl_act:
             # TODO add error message
             return
-        
+
+        index_supported = -1
         for j in range(0, sz_seq_ctrl_act):
-            # TODO We should not use the for loop but actually select the action given by the user (if not supported nothing happens)
+
             seq_ctrl_act_name_bytes = bytes(np.ctypeslib.as_array(seq_ctrl_act[j].name.buf, shape = (seq_ctrl_act[j].name.len,)))
             seq_ctrl_act_name = seq_ctrl_act_name_bytes.decode('utf-8')
-            print("Generating rc control: {}".format(seq_ctrl_act_name))
-            if seq_ctrl_act_name != "Slice-level PRB quota":
-                # TODO Add error message
-                print("not supported control action")
-                return
-            self.control_req.hdr.union.frmt_1.ctrl_act_id = control_action_ids_2[seq_ctrl_act_name]
-            print("format 1 sz {}".format(seq_ctrl_act[j].sz_seq_assoc_ran_param))
-            self.control_req.msg.union.frmt_1.sz_ran_param = sz_seq_ctrl_act # with srsRAN it could be 12, as the ran function description is not well formatted
-            #seq_ctrl_act[j].sz_seq_assoc_ran_param
-            # Creating ran parameter array
-            RanParamArr = ctrl.seq_ran_param_t * self.control_req.msg.union.frmt_1.sz_ran_param
-            self.control_req.msg.union.frmt_1.ran_param = RanParamArr()
+            # Slice-level PRB quota:
+            # To request the allocation of PRBs for a specific slice
+            if seq_ctrl_act_name == "Slice-level PRB quota":
+                index_supported = j
+                break
+        
+        if index_supported == -1:
+            print("No supported control action found in the style")
+            return
+        
+        self.control_req.hdr.union.frmt_1.ctrl_act_id = control_action_ids_2["Slice-level PRB quota"]
+        self.control_req.msg.union.frmt_1.sz_ran_param = seq_ctrl_act[index_supported].sz_seq_assoc_ran_param
 
-            self.rrm_prb_policy_ratio_handler(seq_ctrl_act[j], seq_ctrl_act[j].sz_seq_assoc_ran_param)
+        # Creating ran parameter array
+        RanParamArr = ctrl.seq_ran_param_t * self.control_req.msg.union.frmt_1.sz_ran_param
+        self.control_req.msg.union.frmt_1.ran_param = RanParamArr()
+
+        self.rrm_prb_policy_ratio_handler(seq_ctrl_act[index_supported], seq_ctrl_act[index_supported].sz_seq_assoc_ran_param, plmn_identity, sst, sd, min_prb, max_prb, dedicated_prb)
 
     def generate_connected_mode_mobility_control_frmt_1(self, style: funcdef.seq_ctrl_style_t, style_decoded, ue_id: hdr.ue_id_e2sm_t=None):
         
