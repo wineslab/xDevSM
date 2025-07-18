@@ -81,6 +81,30 @@ prb_quota_slice_level_ids = {
     "Dedicated PRB Policy Ratio": 13
 }
 
+ho_ids = {
+    "Target Primary Cell ID": 1,
+    "CHOICE Target Cell": 2,
+    "NR Cell": 3,
+    "NR CGI": 4,
+    "E-UTRA Cell": 5,
+    "E-UTRA CGI": 6,
+    "List of PDU sessions for handover": 7,
+    "PDU session Item for handover": 8,
+    "PDU session ID": 9,
+    "List of QoS flows in the PDU session": 10,
+    "QoS flow Item": 11,
+    "QoS Flow Identifier": 12,
+    "List of DRBs for handover": 13,
+    "DRB item for handover": 14,
+    "DRB ID": 15,
+    "List of QoS flows to be modified in DRB": 16,
+    "QoS flow Item": 17,
+    "QoS flow Identifier": 18,
+    "List of Secondary cells to be setup": 19,
+    "Secondary cell Item to be setup": 20,
+    "Secondary Cell ID": 21
+}
+
 class RCControlReq(ctypes.Structure):
     _fields_ = [
         ("hdr", hdr.RCControlHdr),
@@ -187,21 +211,25 @@ class RCControlReqWrapper():
             self.print_radio_bearer_control()
         elif self.control_req.hdr.union.frmt_1.ric_style_type == ric_style_types["Radio Resource Allocation Control"]:
             self.print_radio_resource_allocation_control()
+        else:
+            print("Log info not implemented for this type of control action")
         
 
-    def fill_DRB_param(self, index):
+    def fill_DRB_param(self, index, drb_id=1):
+        print("Filling index {} in drb".format(index))
         self.control_req.msg.union.frmt_1.ran_param[index].ran_param_id = qos_ran_parameter_ids["DRB ID"]
         self.control_req.msg.union.frmt_1.ran_param[index].ran_param_val.type = ran_parameter_val_type_e.ELEMENT_KEY_FLAG_TRUE_RAN_PARAMETER_VAL_TYPE
         flag_true_value = ctrl.ran_parameter_value_t()
         flag_true_value.type = ran_parameter_value_e.INTEGER_RAN_PARAMETER_VALUE
-        flag_true_value.union.int_ran = 5 # FIXME make this a parameter
+        flag_true_value.union.int_ran = drb_id
 
         flag_true_ptr = ctypes.pointer(flag_true_value)
         # self.control_req.msg.union.frmt_1.ran_param[index].ran_param_val.union.flag_true = ran_parameter_value_t()
         self.control_req.msg.union.frmt_1.ran_param[index].ran_param_val.union.flag_true = flag_true_ptr
 
 
-    def fill_qos_param(self, index):
+    def fill_qos_param(self, index, qos_flow_id=10, qos_flow_mapping_indication=1):
+        print("Filling index {} in qos".format(index))
         self.control_req.msg.union.frmt_1.ran_param[index].ran_param_id = qos_ran_parameter_ids["List of QoS Flows to be modified in DRB"]
         self.control_req.msg.union.frmt_1.ran_param[index].ran_param_val.type = ran_parameter_val_type_e.LIST_RAN_PARAMETER_VAL_TYPE
         
@@ -223,27 +251,27 @@ class RCControlReqWrapper():
 
         flag_true_value = ctrl.ran_parameter_value_t()
         flag_true_value.type = ran_parameter_value_e.INTEGER_RAN_PARAMETER_VALUE
-        flag_true_value.union.int_ran = 10  # FIXME: Replace with actual parameter (QFI)
+        flag_true_value.union.int_ran = qos_flow_id
         value_list.lst_ran_param[0].ran_param_struct.ran_param_struct[0].ran_param_val.union.flag_true = ctypes.pointer(flag_true_value)
 
         value_list.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_id = qos_ran_parameter_ids["QoS Flow Mapping Indication"]
         value_list.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_val.type = ran_parameter_val_type_e.ELEMENT_KEY_FLAG_FALSE_RAN_PARAMETER_VAL_TYPE
         flag_false_value = ctrl.ran_parameter_value_t()
         flag_false_value.type = ran_parameter_value_e.INTEGER_RAN_PARAMETER_VALUE
-        flag_false_value.union.int_ran = 1  # FIXME: Replace with actual value
+        flag_false_value.union.int_ran = qos_flow_mapping_indication
         value_list.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_val.union.flag_false = ctypes.pointer(flag_false_value)
 
         self.control_req.msg.union.frmt_1.ran_param[index].ran_param_val.union.lst = ctypes.pointer(value_list)
 
-    def qos_flow_mapping_config_handler(self, ctrl_act: funcdef.seq_ctrl_act_2_t, sz_ran_param: ctypes.c_size_t):
+    def qos_flow_mapping_config_handler(self, ctrl_act: funcdef.seq_ctrl_act_2_t, sz_ran_param: ctypes.c_size_t, drb_id=1, qos_flow_id=10, qos_flow_mapping_indication=1 ):
         # in this case only DRB ID and list of qos flows to be modified in DRB are supported
         for i in range(0, sz_ran_param):
             if ctrl_act.assoc_ran_param[i].id == qos_ran_parameter_ids["DRB ID"]:
-                self.fill_DRB_param(i)
+                self.fill_DRB_param(i, drb_id=drb_id)
             elif ctrl_act.assoc_ran_param[i].id == qos_ran_parameter_ids["List of QoS Flows to be modified in DRB"]:
-                self.fill_qos_param(i)
+                self.fill_qos_param(i, qos_flow_id=qos_flow_id, qos_flow_mapping_indication=qos_flow_mapping_indication)
             else:
-                print("QoS parameter not supported {}".format(ctrl_act.assoc_ran_param[i].id))
+                print("QoS parameter not supported {}".format(ctrl_act.assoc_ran_param[0].id))
             
     def rrm_prb_policy_ratio_handler(self, ctrl_act: funcdef.seq_ctrl_act_2_t, sz_ran_param: ctypes.c_size_t):
 
@@ -291,7 +319,7 @@ class RCControlReqWrapper():
         ratio_group.ran_param_struct = ratio_group_type()
         
 
-        # # First Element of the structure: >>RRM Policy
+        # First Element of the structure: >>RRM Policy
         ratio_group.ran_param_struct[0].ran_param_id = prb_quota_slice_level_ids["RRM Policy"]
         ratio_group.ran_param_struct[0].ran_param_val.type = ran_parameter_val_type_e.STRUCTURE_RAN_PARAMETER_VAL_TYPE
         # Allocating struct
@@ -382,11 +410,111 @@ class RCControlReqWrapper():
         self.control_req.msg.union.frmt_1.ran_param[0].ran_param_val.union.lst = ctypes.pointer(rrm_policy_ratio_list)
 
 
+    def ho_handler(self, ctrl_act: funcdef.seq_ctrl_act_2_t, sz_ran_param: ctypes.c_size_t):
+        """
+        This method creates the handover control action.
+        It fills the control request with the necessary parameters.
+        """
+        param_name_bytes = bytes(np.ctypeslib.as_array(ctrl_act.assoc_ran_param[0].name.buf, shape=(ctrl_act.assoc_ran_param[0].name.len,)))
+        param_name = param_name_bytes.decode('utf-8')
+        print("Setting Parameter: {}".format(param_name))
+
+        # FIXME -> make these as paramters
+        PLMN = "00F110"
+        PLMN_bytes = bytes.fromhex(PLMN)
+
+        nr_cell_id = "00000000000000000000111000000001"
+        nr_cell_id = nr_cell_id.zfill(36) # It should be 36 bits long (TS 138 423 Section 9.2.2.7)
+        nr_cell_id_int = int(nr_cell_id, 2)
+        nr_cell_id_bytes = nr_cell_id_int.to_bytes(5, byteorder='big')  # 5 bytes for the NR Cell ID
+
+        nrcgi_bytes = PLMN_bytes + nr_cell_id_bytes
+        NRCGI = ByteArray()
+        NRCGI.len = len(nrcgi_bytes)
+        NRCGI.buf = (ctypes.c_uint8 * NRCGI.len)(*nrcgi_bytes)
+
+        # Target Primary Cell ID
+        self.control_req.msg.union.frmt_1.ran_param[0].ran_param_id = ho_ids["Target Primary Cell ID"]
+        self.control_req.msg.union.frmt_1.ran_param[0].ran_param_val.type = ran_parameter_val_type_e.STRUCTURE_RAN_PARAMETER_VAL_TYPE
+        self.control_req.msg.union.frmt_1.ran_param[0].ran_param_val.union.strct = ctypes.pointer(ctrl.ran_param_struct_t())
+        target_primary_cell_strct = self.control_req.msg.union.frmt_1.ran_param[0].ran_param_val.union.strct.contents
+        target_primary_cell_strct.sz_ran_param_struct = 1  # Only one element
+        target_primary_cell_type = ctrl.seq_ran_param_t * target_primary_cell_strct.sz_ran_param_struct
+        target_primary_cell_strct.ran_param_struct = target_primary_cell_type()
+
+        # Filling Target Primary Cell ID: > CHOICE Target Cell
+        target_primary_cell_strct.ran_param_struct[0].ran_param_id = ho_ids["CHOICE Target Cell"]
+        target_primary_cell_strct.ran_param_struct[0].ran_param_val.type = ran_parameter_val_type_e.STRUCTURE_RAN_PARAMETER_VAL_TYPE
+        target_primary_cell_strct.ran_param_struct[0].ran_param_val.union.strct = ctypes.pointer(ctrl.ran_param_struct_t())
+        choice_target_cell_strct = target_primary_cell_strct.ran_param_struct[0].ran_param_val.union.strct.contents
+        choice_target_cell_strct.sz_ran_param_struct = 1 # Two elements but filling only one
+        choice_target_cell_type = ctrl.seq_ran_param_t * choice_target_cell_strct.sz_ran_param_struct
+        choice_target_cell_strct.ran_param_struct = choice_target_cell_type()
+
+        # Filling CHOICE Target Cell: >> NR Cell
+        choice_target_cell_strct.ran_param_struct[0].ran_param_id = ho_ids["NR Cell"]
+        choice_target_cell_strct.ran_param_struct[0].ran_param_val.type = ran_parameter_val_type_e.STRUCTURE_RAN_PARAMETER_VAL_TYPE
+        choice_target_cell_strct.ran_param_struct[0].ran_param_val.union.strct = ctypes.pointer(ctrl.ran_param_struct_t())
+        nr_cell_strct = choice_target_cell_strct.ran_param_struct[0].ran_param_val.union.strct.contents
+        nr_cell_strct.sz_ran_param_struct = 1
+        nr_cell_type = ctrl.seq_ran_param_t * nr_cell_strct.sz_ran_param_struct
+        nr_cell_strct.ran_param_struct = nr_cell_type()
+
+        # Filling NR Cell: >>> NR CGI
+        nr_cell_strct.ran_param_struct[0].ran_param_id = ho_ids["NR CGI"]
+        nr_cell_strct.ran_param_struct[0].ran_param_val.type = ran_parameter_val_type_e.ELEMENT_KEY_FLAG_FALSE_RAN_PARAMETER_VAL_TYPE
+        # Filling NR CGI
+        nrcgi_value = ctrl.ran_parameter_value_t()
+        nrcgi_value.type = ran_parameter_value_e.OCTET_STRING_RAN_PARAMETER_VALUE
+        nrcgi_value.union.octet_str_ran = NRCGI
+        nr_cell_strct.ran_param_struct[0].ran_param_val.union.flag_false = ctypes.pointer(nrcgi_value)
+
+        # Filling CHOICE Target Cell: >> E-UTRA Cell (Just initializing, not filling)
+        # choice_target_cell_strct.ran_param_struct[1].ran_param_id = ho_ids["E-UTRA Cell"]
+        # choice_target_cell_strct.ran_param_struct[1].ran_param_val.type = ran_parameter_val_type_e.STRUCTURE_RAN_PARAMETER_VAL_TYPE
+        # choice_target_cell_strct.ran_param_struct[1].ran_param_val.union.strct = ctypes.pointer(ctrl.ran_param_struct_t())
+        # eutra_cell_strct = choice_target_cell_strct.ran_param_struct[1].ran_param_val.union.strct.contents
+        # eutra_cell_strct.sz_ran_param_struct = 0
+        # eutra_cell_type = ctrl.seq_ran_param_t * eutra_cell_strct.sz_ran_param_struct
+        # eutra_cell_strct.ran_param_struct = eutra_cell_type()
+        # eutra_cell_strct.ran_param_struct[0].ran_param_id = ho_ids["E-UTRA CGI"]
+
+
+        # NOT SUPPORTED YET
+        # self.control_req.msg.union.frmt_1.ran_param[1].ran_param_id = ho_ids["List of PDU sessions for handover"]
+        # self.control_req.msg.union.frmt_1.ran_param[1].ran_param_val.type = ran_parameter_val_type_e.LIST_RAN_PARAMETER_VAL_TYPE
+        # self.control_req.msg.union.frmt_1.ran_param[1].ran_param_val.union.lst = ctypes.pointer(ctrl.ran_param_list_t())
+        # self.control_req.msg.union.frmt_1.ran_param[1].ran_param_val.union.lst.contents.sz_lst_ran_param = 0
+        # self.control_req.msg.union.frmt_1.ran_param[1].ran_param_val.union.lst.contents.lst_ran_param = ctypes.pointer(ctrl.lst_ran_param_t())
+
+
+        # self.control_req.msg.union.frmt_1.ran_param[2].ran_param_id = ho_ids["List of DRBs for handover"]
+        # self.control_req.msg.union.frmt_1.ran_param[2].ran_param_val.type = ran_parameter_val_type_e.LIST_RAN_PARAMETER_VAL_TYPE
+        # self.control_req.msg.union.frmt_1.ran_param[2].ran_param_val.union.lst = ctypes.pointer(ctrl.ran_param_list_t())
+        # self.control_req.msg.union.frmt_1.ran_param[2].ran_param_val.union.lst.contents.sz_lst_ran_param = 0
+        # self.control_req.msg.union.frmt_1.ran_param[2].ran_param_val.union.lst.contents.lst_ran_param = ctypes.pointer(ctrl.lst_ran_param_t())
+
+        # self.control_req.msg.union.frmt_1.ran_param[3].ran_param_id = ho_ids["List of Secondary cells to be setup"]
+        # self.control_req.msg.union.frmt_1.ran_param[3].ran_param_val.type = ran_parameter_val_type_e.LIST_RAN_PARAMETER_VAL_TYPE
+        # self.control_req.msg.union.frmt_1.ran_param[3].ran_param_val.union.lst = ctypes.pointer(ctrl.ran_param_list_t())
+        # self.control_req.msg.union.frmt_1.ran_param[3].ran_param_val.union.lst.contents.sz_lst_ran_param = 0
+        # self.control_req.msg.union.frmt_1.ran_param[3].ran_param_val.union.lst.contents.lst_ran_param = ctypes.pointer(ctrl.lst_ran_param_t())
         
 
 
-    def generate_radio_bearer_control_msg(self,  style: funcdef.seq_ctrl_style_t, style_decoded, ue_id: hdr.ue_id_e2sm_t=None):
+
+
+
+
+    def generate_radio_bearer_control_msg(self,  style: funcdef.seq_ctrl_style_t, ue_id: hdr.ue_id_e2sm_t=None, drb_id: int=1, qos_flow_id: int=10, qos_flow_mapping_indication: int=1):
         print("Generating Radio Bearer Control Message")
+        
+        self.control_req.hdr = hdr.RCControlHdr()
+        self.control_req.msg = ctrl.RCControlMsg()
+
+        style_bytes = bytes(np.ctypeslib.as_array(style.name.buf, shape = (style.name.len,)))
+        style_decoded = style_bytes.decode('utf-8')
+
         self.control_req.hdr.format = style.hdr
         
         if self.control_req.hdr.format.value != e2sm_rc_ctrl_hdr_e.FORMAT_1_E2SM_RC_CTRL_HDR:
@@ -414,26 +542,31 @@ class RCControlReqWrapper():
         if not seq_ctrl_act:
             # TODO add error message
             return
-
+        index_supported = -1
         for j in range(0, sz_seq_ctrl_act):
+
             seq_ctrl_act_name_bytes = bytes(np.ctypeslib.as_array(seq_ctrl_act[j].name.buf, shape = (seq_ctrl_act[j].name.len,)))
             seq_ctrl_act_name = seq_ctrl_act_name_bytes.decode('utf-8')
             # We should make this as a parameter
             # QoS flow Mapping configuration:
             # To request the multiplexing of QoS flows to a DRB (addition, modification, deletion)
-            print("Generating rc control: {}".format(seq_ctrl_act_name))
-            if seq_ctrl_act_name != "QoS flow mapping configuration":
-                # TODO Add error message
-                print("not supported control action")
-                return
-            self.control_req.hdr.union.frmt_1.ctrl_act_id = control_action_ids_1[seq_ctrl_act_name]
-            self.control_req.msg.union.frmt_1.sz_ran_param = seq_ctrl_act[j].sz_seq_assoc_ran_param
+            if seq_ctrl_act_name == "QoS flow mapping configuration":
+                index_supported = j
+                break
+        
+        if index_supported == -1:
+            print("No supported control action found in the style")
+            return
 
-            # Creating ran parameter array
-            RanParamArr = ctrl.seq_ran_param_t * self.control_req.msg.union.frmt_1.sz_ran_param
-            self.control_req.msg.union.frmt_1.ran_param = RanParamArr()
 
-            self.qos_flow_mapping_config_handler(seq_ctrl_act[j], seq_ctrl_act[j].sz_seq_assoc_ran_param)
+        self.control_req.hdr.union.frmt_1.ctrl_act_id = control_action_ids_1["QoS flow mapping configuration"]
+        self.control_req.msg.union.frmt_1.sz_ran_param = seq_ctrl_act[index_supported].sz_seq_assoc_ran_param
+
+        # Creating ran parameter array
+        RanParamArr = ctrl.seq_ran_param_t * self.control_req.msg.union.frmt_1.sz_ran_param
+        self.control_req.msg.union.frmt_1.ran_param = RanParamArr()
+
+        self.qos_flow_mapping_config_handler(seq_ctrl_act[index_supported], seq_ctrl_act[index_supported].sz_seq_assoc_ran_param, drb_id=drb_id, qos_flow_id=qos_flow_id, qos_flow_mapping_indication=qos_flow_mapping_indication)
 
     def generate_radio_resource_allocation_control_frmt_1(self,  style: funcdef.seq_ctrl_style_t, style_decoded, ue_id: hdr.ue_id_e2sm_t=None):
         """
@@ -463,6 +596,7 @@ class RCControlReqWrapper():
             return
 
         for j in range(0, sz_seq_ctrl_act):
+            # TODO We should not use the for loop but actually select the action given by the user (if not supported nothing happens)
             seq_ctrl_act_name_bytes = bytes(np.ctypeslib.as_array(seq_ctrl_act[j].name.buf, shape = (seq_ctrl_act[j].name.len,)))
             seq_ctrl_act_name = seq_ctrl_act_name_bytes.decode('utf-8')
             print("Generating rc control: {}".format(seq_ctrl_act_name))
@@ -481,7 +615,9 @@ class RCControlReqWrapper():
             self.rrm_prb_policy_ratio_handler(seq_ctrl_act[j], seq_ctrl_act[j].sz_seq_assoc_ran_param)
 
     def generate_connected_mode_mobility_control_frmt_1(self, style: funcdef.seq_ctrl_style_t, style_decoded, ue_id: hdr.ue_id_e2sm_t=None):
+        
         print("Generating Connected mode mobility control Message")
+        
         self.control_req.hdr.format = e2sm_rc_ctrl_hdr_e.FORMAT_1_E2SM_RC_CTRL_HDR
         self.control_req.hdr.union.frmt_1 = hdr.e2sm_rc_ctrl_hdr_frmt_1_t()
         self.control_req.hdr.union.frmt_1.ric_style_type = ric_style_types[style_decoded]
@@ -489,6 +625,31 @@ class RCControlReqWrapper():
             print("UE ID not provided")
             return
         self.control_req.hdr.union.frmt_1.ue_id = ue_id # we need more information about the UE ID type, as it is not always the same
+
+        self.control_req.msg.format = e2sm_rc_ctrl_msg_e.FORMAT_1_E2SM_RC_CTRL_MSG
+
+        seq_ctrl_act = style.seq_ctrl_act
+        sz_seq_ctrl_act = style.sz_seq_ctrl_act
+        if not seq_ctrl_act:
+            # TODO add error message
+            return
+
+        for j in range(0, sz_seq_ctrl_act): 
+            # TODO We should not use the for loop but actually select the action given by the user (if not supported nothing happens)
+            seq_ctrl_act_name_bytes = bytes(np.ctypeslib.as_array(seq_ctrl_act[j].name.buf, shape = (seq_ctrl_act[j].name.len,)))
+            seq_ctrl_act_name = seq_ctrl_act_name_bytes.decode('utf-8')
+            self.control_req.hdr.union.frmt_1.ctrl_act_id = control_action_ids_3[seq_ctrl_act_name]
+            self.control_req.msg.union.frmt_1.sz_ran_param = 1 # JUST Target Cell Id supported  #seq_ctrl_act[j].sz_seq_assoc_ran_param
+            print("format 1 sz {}".format(seq_ctrl_act[j].sz_seq_assoc_ran_param))
+            print("Generating rc control: {}".format(seq_ctrl_act_name))
+            if seq_ctrl_act_name != "Handover Control":
+                print("not supported control action")
+                return
+            RanParamArr = ctrl.seq_ran_param_t * self.control_req.msg.union.frmt_1.sz_ran_param
+            self.control_req.msg.union.frmt_1.ran_param = RanParamArr()
+            self.ho_handler(seq_ctrl_act[j], seq_ctrl_act[j].sz_seq_assoc_ran_param)
+
+
         
     
     def generate_control_request(self, style, ue_id: hdr.ue_id_e2sm_t=None, ctrl_style_id: int=1):
@@ -504,7 +665,6 @@ class RCControlReqWrapper():
         elif ctrl_style_id == ric_style_types["Radio Resource Allocation Control"] and style_decoded_string == "Radio Resource Allocation Control":
             self.generate_radio_resource_allocation_control_frmt_1(style=style, style_decoded=style_decoded_string, ue_id=ue_id)
         elif ctrl_style_id == ric_style_types["Connected mode mobility control"] and style_decoded_string == "Connected mode mobility control":
-            print("Connected mode mobility control not implemented yet")
             self.generate_connected_mode_mobility_control_frmt_1(style=style, style_decoded=style_decoded_string, ue_id=ue_id)
         
 
@@ -525,7 +685,13 @@ class RCControlReqWrapper():
             style = ctrl_descr.seq_ctrl_style[i]
             self.generate_control_request(style, ue_id=ue_id, ctrl_style_id=ctrl_style_id)
         
-
+    # def initialize_control_request(self):
+    #     """
+    #     This method initializes the control request structure.
+    #     It should be called before generating the control request.
+    #     """
+    #     self.control_req.hdr = hdr.RCControlHdr()
+    #     self.control_req.msg = ctrl.RCControlMsg()
 
 
     # def __del__(self):

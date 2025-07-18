@@ -1,108 +1,31 @@
-import os
-import signal
 import requests
-import json
 import ctypes
 
 # osc xappframe
-from ricxappframe.xapp_frame import RMRXapp, rmr
+from ricxappframe.xapp_frame import rmr
 from ricxappframe.e2ap.asn1 import ControlRequestMsg
-from ricxappframe.util.constants import Constants
-
-from mdclogpy import Level
-import ricxappframe.xapp_rest as ricrest
 
 # utility
 from utils.constants import Values
+
+# Base Custom RMR Xapp
+from base_rmr_xapp import BaseRMRXapp
 
 # sm framework
 import sm_framework.py_oran.rc.RCFunctionDef as funcdef
 import sm_framework.py_oran.rc.RCControlReq as ctrlReq
 import sm_framework.py_oran.rc.RCControlHdr as ctrlhdr
 
-class RCControlBase(RMRXapp):
+class RCControlBase(BaseRMRXapp):
     def __init__(self, address, entrypoint=None):
 
-        self.rmr_port = 4560
-
-        super().__init__(default_handler=self.__default_handler, rmr_port=self.rmr_port, post_init=self._post_init, rmr_wait_for_ready=True)
-        
-        self.logger.set_level(Level.DEBUG)
-
-        self.address = address
-
-        self.rc_function_def_wrapper = funcdef.RCFuncDefWrapper(hex="") 
-        # Getting ports from config file
-        messaging_format = self._config_data.get("messaging")
-        self.http_port, self.rmr_svc_port = self.loading_ports(messaging_format)
-        if self.http_port is None:
-            self.logger.error("http port not found: setting default to 8080")
-            self.http_port = 8080            
-        # TODO --> This cannot be made dynamic right now. We should change where the config file is read            
-        # elif self.rmr_port is None: 
-        #     self.logger.error("rmr port not found: setting default to 4560")
-        #     self.rmr_port = 4560
-        elif self.rmr_svc_port is None: 
-            self.logger.error("rmr svc port not found: setting default to 4561")
-            self.rmr_svc_port = 4561
-        else:
-            self.logger.info("http port: {}, rmr port: {}, rmr svc port: {}".format(self.http_port, self.rmr_port, self.rmr_svc_port))
-
-        # Getting plt namespace
-        self.pltnamespace = os.environ.get("PLT_NAMESPACE")
-        if self.pltnamespace is None:
-            self.pltnamespace = Constants.DEFAULT_PLT_NS
-
-        self.xapp_name = self._config_data.get("name")
-
-        # Getting app namespace
-        self.app_namespace = self._config_data.get("APP_NAMESPACE")
-        if self.app_namespace is None:
-            self.app_namespace = Constants.DEFAULT_XAPP_NS
-
-
-        # HTTP Server: create the thread HTTP server and set the uri handler callbacks
-        self.server = ricrest.ThreadedHTTPServer(self.address, self.http_port)
-
-        self.server.handler.add_handler(self.server.handler, "GET", "config", "/ric/v1/config", self.__config_get_handler)
-        self.server.handler.add_handler(self.server.handler, "GET", "healthAlive", "/ric/v1/health/alive", self.__healthy_get_alive_handler)
-        self.server.handler.add_handler(self.server.handler, "GET", "healthReady", "/ric/v1/health/ready", self.__healthyGetReadyHandler)
-
-        signal.signal(signal.SIGINT, self.terminating_xapp)
-        signal.signal(signal.SIGTERM, self.terminating_xapp)
-
-        # start the server
-        self.server.start()
-
-        os.environ["RMR_SRC_ID"] = self.xapp_name
-        os.environ["RMR_LOG_VLEVEL"] = str(4)
-        os.environ["RMR_RTG_SVC"] = str(self.rmr_svc_port)
-
-
-        self.e2mgr_link = Values.GENERAL_PATH.format(self.pltnamespace, Values.E2MGR_SERVICE, self.pltnamespace, Values.E2MGR_PORT) + "/v1/nodeb/"
-
-        self.logger.set_level(Level.DEBUG)
-
-
-    def __config_get_handler(self, name, path, data, ctype):
-        response = ricrest.initResponse()
-        response['payload'] = json.dumps(self._config_data)
-        return response
+        super().__init__(address, entrypoint=entrypoint)
+        self.rc_function_def_wrapper = funcdef.RCFuncDefWrapper(hex="")
+        self.wrapper = ctrlReq.RCControlReqWrapper()
+        self.add_rmr_rule()
     
-    def __healthy_get_alive_handler(self, name, path, data, ctype): 
-        response = ricrest.initResponse()
-        response['payload'] = ("{'status': 'alive'}")
-        return response
     
-    def __healthyGetReadyHandler(self, name, path, data, ctype):
-        response = ricrest.initResponse()
-        response['payload'] = ("{'status': 'ready'}")
-        return response
-    
-    def _post_init(self, xapp):
-        xapp.logger.info("xApp Initialized")
-    
-    def __default_handler(self, xapp, summary, sbuf):
+    def handle(self, xapp, summary, sbuf):
         xapp.logger.info("received: {}".format(summary))
         if summary[rmr.RMR_MS_MSG_TYPE] == Values.RIC_CONTROL_ACK:
             # TODO Add invocation of control ack handler
@@ -111,3 +34,118 @@ class RCControlBase(RMRXapp):
             xapp.logger.error("Received failure ack")
         
         xapp.rmr_free(sbuf)
+    
+    def get_ran_function_description(self, json_ran_info):
+        """
+        Get decoded ran function description
+        Parameters:
+        ----------
+        json_ran_info (json obj): json object obtained when by the get_ran_info function
+        ran_func_id(int): by default is 3 (rc)
+
+        """
+        if not json_ran_info:
+            self.logger.info("json_ran_info object None value not admitted!")
+            return
+
+        for ran_func in json_ran_info["gnb"]["ranFunctions"]: 
+            if ran_func["ranFunctionId"] == 3:
+                # selecting kpm action
+                ran_function_definition = ran_func["ranFunctionDefinition"]
+                break
+        self.logger.info(ran_function_definition)
+        # Decoding RAN function Definition
+        self.rc_function_def_wrapper.set_hex(hex=ran_function_definition)
+        
+        func_def_obj = self.rc_function_def_wrapper.decode()
+        return func_def_obj
+    
+    def generate_send_control_request(self, *args, **kwargs):
+        """Depend on the control request."""
+        pass
+
+    def send_control_request_rmr(self, e2_node_id, control_header: bytes, control_message: bytes, call_process_id: bytes=b"", requestor_id=1, control_ack_request=1, request_sequence_number=0):
+        
+        rc_ctrl_rec_msg = ControlRequestMsg()
+        size, payload = rc_ctrl_rec_msg.encode(call_process_id=call_process_id,
+                                               requestor_id=requestor_id,
+                                               control_ack_request=control_ack_request,
+                                               request_sequence_number=request_sequence_number,
+                                               control_header=control_header,
+                                               control_message=control_message,
+                                               ran_function_id=3)
+
+        self.logger.info("Sending RCControlRequest Message: {} ({})".format(size, payload))
+        sbuf = rmr.rmr_alloc_msg(vctx=self._mrc, size=len(payload), mtype=Values.RIC_CONTROL_REQ)
+        rmr.set_payload_and_length(payload,sbuf)
+        rmr.generate_and_set_transaction_id(sbuf)
+        sbuf.contents.state = 0
+        sbuf.contents.mtype = Values.RIC_CONTROL_REQ
+        sbuf.contents.sub_id = -1
+        self.logger.info("E2 node id: {}".format(e2_node_id.encode("utf8")))
+        rmr.rmr_set_meid(sbuf, e2_node_id.encode("utf8"))
+        sbuf = rmr.rmr_send_msg(self._mrc, sbuf)
+        self.logger.info("Message Sent")
+    
+    def add_rmr_rule(self):
+        """
+        Add RMR rule for control messages
+        """
+        # TODO
+        self.logger.info("Adding RMR rule for control messages")
+    
+    def delete_rmr_rule(self):
+        """
+        Delete RMR rule for control messages
+        """
+        # TODO
+        self.logger.info("Deleting RMR rule for control messages")
+    
+
+    ########## Temporary mock functions for UE ID ##########
+    def get_mock_du_ue_id(self) -> ctrlhdr.ue_id_e2sm_t:
+        ue_id = ctrlhdr.ue_id_e2sm_t()
+        ue_id.type = ctrlhdr.ue_id_e2sm_e.GNB_DU_UE_ID_E2SM
+        
+        gnb_du = ctrlhdr.gnb_du_e2sm_t()
+
+        gnb_du.gnb_cu_ue_f1ap = 0
+        # gnb_du.ran_ue_id = 0 # We don't have this information in KPM messages in srs
+
+        ue_id.union.gnb_du = gnb_du
+        
+        return ue_id
+    
+    def get_mock_ue_id(self, ran_ue_id: ctypes.c_ulong=1) -> ctrlhdr.ue_id_e2sm_t:
+        ue_id = ctrlhdr.ue_id_e2sm_t()
+        ue_id.type = ctrlhdr.ue_id_e2sm_e.GNB_UE_ID_E2SM
+        
+        gnb_mono = ctrlhdr.gnb_e2sm_t()
+        gnb_mono.amf_ue_ngap_id = 9
+        
+        # guami
+        plmn_id = ctrlhdr.e2sm_plmn_t()
+        plmn_id.mcc = 1
+        plmn_id.mnc = 1
+        plmn_id.mnc_digit_len = 2 
+        guami = ctrlhdr.guami_t()
+        guami.plmn_id = plmn_id
+        guami.amf_region_id = 1
+        guami.amf_set_id = 1
+        guami.amf_ptr = 1
+        gnb_mono.guami = guami
+
+        gnb_mono.gnb_cu_ue_f1ap_lst_len = 0
+        gnb_mono.gnb_cu_cp_ue_e1ap_lst_len = 0
+        gnb_mono.ran_ue_id = ctypes.pointer(ctypes.c_ulong(ran_ue_id))
+
+        # gnb_pointer = ctypes.pointer(gnb_mono)
+
+        ue_id.union.gnb = gnb_mono
+
+        return ue_id
+    ########## ############################## ##########
+
+    def terminating_xapp(self, signum, frame):
+        self.delete_rmr_rule()
+        super().terminating_xapp(signum, frame)

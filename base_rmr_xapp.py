@@ -159,7 +159,7 @@ class BaseRMRXapp(RMRXapp):
 
     def terminating_xapp(self, signum, frame):
         self.logger.info("Received termination signal")
-        self.xapp_shutdown()
+        self.stop()
         self.logger.info("Bye!")
     
 

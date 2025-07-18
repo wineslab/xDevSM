@@ -227,30 +227,6 @@ class XappKpmFrame(BaseRMRXapp):
         """
         return self.subscription_id[inventory_name]
     
-    def get_app_namespace(self):
-        """
-        Returns:
-        ----------
-        app namespace
-        """
-        return self.app_namespace
-    
-    def get_pltnamespace(self):
-        """
-        Returns:
-        ----------
-        plt namespace
-        """
-        return self.pltnamespace
-    
-    def get_xapp_name(self):
-        """
-        Returns:
-        ----------
-        xapp name
-        """
-        return self.xapp_name
-    
     def get_ran_function_description(self, json_ran_info):
         """
         Get decoded ran function description
@@ -301,8 +277,7 @@ class XappKpmFrame(BaseRMRXapp):
             for key in self.subscription_id.keys():
                 self.logger.info("Unsubscribing from gnb: {}, subid: {}, DELETE {}".format(key, self.subscription_id[key], self.uri_subscriptions))
                 # self.subscriber.Unsubscribe(subs_id=str(self.subscription_id[key]))#-- not supported in by different ran software
-        self.stop()
-        self.logger.info("Bye!")
+        super().terminating_xapp(signum, frame)
 
     def logic(self):
         pass
