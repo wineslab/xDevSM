@@ -410,7 +410,7 @@ class RCControlReqWrapper():
         self.control_req.msg.union.frmt_1.ran_param[0].ran_param_val.union.lst = ctypes.pointer(rrm_policy_ratio_list)
 
 
-    def ho_handler(self, ctrl_act: funcdef.seq_ctrl_act_2_t, sz_ran_param: ctypes.c_size_t):
+    def ho_handler(self, ctrl_act: funcdef.seq_ctrl_act_2_t, sz_ran_param: ctypes.c_size_t, plmn_identity: str, nr_cell_id: str):
         """
         This method creates the handover control action.
         It fills the control request with the necessary parameters.
@@ -419,11 +419,10 @@ class RCControlReqWrapper():
         param_name = param_name_bytes.decode('utf-8')
         print("Setting Parameter: {}".format(param_name))
 
-        # FIXME -> make these as paramters
-        PLMN = "00F110"
+        PLMN = plmn_identity
         PLMN_bytes = bytes.fromhex(PLMN)
 
-        nr_cell_id = "00000000000000000000111000000001"
+        nr_cell_id = nr_cell_id
         nr_cell_id = nr_cell_id.zfill(36) # It should be 36 bits long (TS 138 423 Section 9.2.2.7)
         nr_cell_id_int = int(nr_cell_id, 2)
         nr_cell_id_bytes = nr_cell_id_int.to_bytes(5, byteorder='big')  # 5 bytes for the NR Cell ID
@@ -625,10 +624,15 @@ class RCControlReqWrapper():
 
         self.rrm_prb_policy_ratio_handler(seq_ctrl_act[index_supported], seq_ctrl_act[index_supported].sz_seq_assoc_ran_param, plmn_identity, sst, sd, min_prb, max_prb, dedicated_prb)
 
-    def generate_connected_mode_mobility_control_frmt_1(self, style: funcdef.seq_ctrl_style_t, style_decoded, ue_id: hdr.ue_id_e2sm_t=None):
-        
+    def generate_connected_mode_mobility_control_frmt_1(self, style: funcdef.seq_ctrl_style_t, ue_id: hdr.ue_id_e2sm_t=None, plmn_identity: str=None, nr_cell_id: str=None):
+        """ This method generates the Connected mode mobility control message in format 1."""
         print("Generating Connected mode mobility control Message")
-        
+        self.control_req.hdr = hdr.RCControlHdr()
+        self.control_req.msg = ctrl.RCControlMsg()
+
+        style_bytes = bytes(np.ctypeslib.as_array(style.name.buf, shape = (style.name.len,)))
+        style_decoded = style_bytes.decode('utf-8')
+
         self.control_req.hdr.format = e2sm_rc_ctrl_hdr_e.FORMAT_1_E2SM_RC_CTRL_HDR
         self.control_req.hdr.union.frmt_1 = hdr.e2sm_rc_ctrl_hdr_frmt_1_t()
         self.control_req.hdr.union.frmt_1.ric_style_type = ric_style_types[style_decoded]
@@ -645,20 +649,26 @@ class RCControlReqWrapper():
             # TODO add error message
             return
 
-        for j in range(0, sz_seq_ctrl_act): 
-            # TODO We should not use the for loop but actually select the action given by the user (if not supported nothing happens)
+        index_supported = -1
+        for j in range(0, sz_seq_ctrl_act):
+
             seq_ctrl_act_name_bytes = bytes(np.ctypeslib.as_array(seq_ctrl_act[j].name.buf, shape = (seq_ctrl_act[j].name.len,)))
             seq_ctrl_act_name = seq_ctrl_act_name_bytes.decode('utf-8')
-            self.control_req.hdr.union.frmt_1.ctrl_act_id = control_action_ids_3[seq_ctrl_act_name]
-            self.control_req.msg.union.frmt_1.sz_ran_param = 1 # JUST Target Cell Id supported  #seq_ctrl_act[j].sz_seq_assoc_ran_param
-            print("format 1 sz {}".format(seq_ctrl_act[j].sz_seq_assoc_ran_param))
-            print("Generating rc control: {}".format(seq_ctrl_act_name))
-            if seq_ctrl_act_name != "Handover Control":
-                print("not supported control action")
-                return
-            RanParamArr = ctrl.seq_ran_param_t * self.control_req.msg.union.frmt_1.sz_ran_param
-            self.control_req.msg.union.frmt_1.ran_param = RanParamArr()
-            self.ho_handler(seq_ctrl_act[j], seq_ctrl_act[j].sz_seq_assoc_ran_param)
+            # Slice-level PRB quota:
+            # To request the allocation of PRBs for a specific slice
+            if seq_ctrl_act_name == "Handover Control":
+                index_supported = j
+                break
+        
+        if index_supported == -1:
+            print("No supported control action found in the style")
+            return
+        self.control_req.hdr.union.frmt_1.ctrl_act_id = control_action_ids_3["Handover Control"]
+        self.control_req.msg.union.frmt_1.sz_ran_param = 1 # JUST Target Cell Id supported  #seq_ctrl_act[j].sz_seq_assoc_ran_param
+        
+        RanParamArr = ctrl.seq_ran_param_t * self.control_req.msg.union.frmt_1.sz_ran_param
+        self.control_req.msg.union.frmt_1.ran_param = RanParamArr()
+        self.ho_handler(seq_ctrl_act[index_supported], seq_ctrl_act[index_supported].sz_seq_assoc_ran_param, plmn_identity=plmn_identity, nr_cell_id=nr_cell_id)
 
 
         

@@ -63,7 +63,7 @@ class RCControlBase(BaseRMRXapp):
         func_def_obj = self.rc_function_def_wrapper.decode()
         return func_def_obj
 
-    def send_control_request(self, e2_node_id, ran_func_dsc: funcdef.RCFuncDef, ue_id=None):
+    def send_control_request(self, e2_node_id, ran_func_dsc: funcdef.RCFuncDef, ue_id=None, control_action_id=1):
         """
         Sends a Control Request.
 
@@ -95,7 +95,7 @@ class RCControlBase(BaseRMRXapp):
 
         self.logger.info("{} style supported generating message".format(self.service_style_name))
 
-        self.generate_control_request(ue_id=ue_id)
+        self.generate_control_request(ue_id=ue_id, control_action_id=control_action_id)
 
         self.wrapper.print_ctrl_req()
 
@@ -110,7 +110,7 @@ class RCControlBase(BaseRMRXapp):
                                         control_header=hdr_byte_array,
                                         control_message=ctrl_msg_byte_array)
 
-    def generate_control_request(self, ue_id):
+    def generate_control_request(self, ue_id, control_action_id=1):
         pass
 
     def send_control_request_rmr(self, e2_node_id, control_header: bytes, control_message: bytes, call_process_id: bytes=b"", requestor_id=1, control_ack_request=1, request_sequence_number=0):
