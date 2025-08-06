@@ -12,21 +12,23 @@ import ricxappframe.xapp_rest as ricrest
 
 # utility
 from utils.constants import Values
+from xDevSM.utils.utility import write_routing_table
 
-# sm framework
-import sm_framework.py_oran.rc.RCFunctionDef as funcdef
+# xDevSM imports
+from handlers.I_xDevSM_xapp import BasexDevSMXapp
 
-
-class BaseRMRXapp(RMRXapp):
-    def __init__(self, address, entrypoint=None):
+class xDevSMRMRXapp(RMRXapp, BasexDevSMXapp):
+    def __init__(self, address, xapp_name=None, entrypoint=None, route_file=None):
         self.rmr_port = 4560
-
-        super().__init__(default_handler=self.handle, rmr_port=self.rmr_port, post_init=self._post_init, rmr_wait_for_ready=True)
+        self._handler = None        
+        super().__init__(default_handler=self._dispatch_event, rmr_port=self.rmr_port, post_init=self._post_init, rmr_wait_for_ready=True)
         
         self.logger.set_level(Level.DEBUG)
 
-        self.xapp_name = self._config_data.get("name")
+        self.xapp_name = xapp_name if xapp_name else self._config_data.get("name")
         self.address = address
+        
+        self.shutdown = None
 
         # Getting ports from config file
         messaging_format = self._config_data.get("messaging")
@@ -57,6 +59,12 @@ class BaseRMRXapp(RMRXapp):
         if self.app_namespace is None:
             self.app_namespace = Constants.DEFAULT_XAPP_NS
 
+        # Setting routes
+        if route_file is None:
+            route_file = "./config/uta_rtg.rt"
+    
+        write_routing_table(self.xapp_name, self.app_namespace, self.rmr_port, route_file)
+
 
         # HTTP Server: create the thread HTTP server and set the uri handler callbacks
         self.server = ricrest.ThreadedHTTPServer(self.address, self.http_port)
@@ -64,9 +72,6 @@ class BaseRMRXapp(RMRXapp):
         self.server.handler.add_handler(self.server.handler, "GET", "config", "/ric/v1/config", self.__config_get_handler)
         self.server.handler.add_handler(self.server.handler, "GET", "healthAlive", "/ric/v1/health/alive", self.__healthy_get_alive_handler)
         self.server.handler.add_handler(self.server.handler, "GET", "healthReady", "/ric/v1/health/ready", self.__healthyGetReadyHandler)
-
-        signal.signal(signal.SIGINT, self.terminating_xapp)
-        signal.signal(signal.SIGTERM, self.terminating_xapp)
 
         # start the server
         self.server.start()
@@ -94,6 +99,22 @@ class BaseRMRXapp(RMRXapp):
     def _post_init(self, xapp):
         xapp.logger.info("xApp Initialized")
     
+    def register_handler(self, handler):
+        self._handler = handler
+
+    def register_shutdown(self, shutdown):
+        """
+        Register a shutdown function to be called on termination.
+        This is particularly useful fo cleaning up resources or stopping services gracefully. (e.g., influxdb close)
+        """
+        self.shutdown = shutdown
+
+    def _dispatch_event(self, xapp, summary, sbuf):
+        xapp.logger.info("[xDevSMRMRXapp] dispatching event")
+        if self._handler is not None:
+            self._handler(xapp, summary, sbuf)
+        else:        
+            self.handle(xapp, summary, sbuf)
 
     def get_ran_info(self, e2node):
         """
@@ -113,8 +134,6 @@ class BaseRMRXapp(RMRXapp):
         response = requests.get(uri_e2_mgr)
         return response.json()
     
-    def get_ran_function_description(self, json_ran_info):
-        pass
 
     def get_app_namespace(self):
         """
@@ -157,14 +176,21 @@ class BaseRMRXapp(RMRXapp):
         return http_port, rmr_svc_port
     
 
-    def terminating_xapp(self, signum, frame):
-        self.logger.info("Received termination signal")
-        self.stop()
-        self.logger.info("Bye!")
-    
-
     def handle(self, xapp, summary, sbuf):
-        pass
+        self.logger.info("[xDevSMRMRXapp] Recevied handle message Event")
+        xapp.rmr_free(sbuf)
+    
+    def send(self, *args, **kwargs):
+        self.logger.info("[xDevSMRMRXapp] Recevied Sending message Event")
 
-    def logic():
-        pass
+    def get_ran_function_description(self, json_ran_info):
+        self.logger.info("[xDevSMRMRXapp] Recevied get_ran_function_description Event")
+    
+    def terminate(self, signum, frame):
+        self.logger.info("[xDevSMRMRXapp] Received termination signal")
+        self.stop()
+        if self.shutdown is not None:
+            self.shutdown()
+        else:
+            self.logger.info("[xDevSMRMRXapp] No shutdown function registered")
+        self.logger.info("[xDevSMRMRXapp] Bye!")

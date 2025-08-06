@@ -1,15 +1,29 @@
-from rc.rc_control_base import RCControlBase
-
-from sm_framework.py_oran.rc import RCFunctionDef as funcdef
-
+# import base decorator
+from decorators.rc.rc_control_base import RCControlBase
 
 class RadioResourceAllocationControl(RCControlBase):
     """
-    Radio Resource Allocation Control Xapp
+    Radio Resource Allocation Control Decorator
     """
-    
-    def __init__(self, address, plmn_identity, sst, sd, min_prb_policy_ratio, max_prb_policy_ratio, dedicated_prb_policy_ratio):
-        super().__init__(address, entrypoint=None)
+
+    def __init__(self, 
+                 xapp_handler, 
+                 logger, 
+                 server, 
+                 xapp_name, 
+                 rmr_port,
+                 mrc, 
+                 http_port, 
+                 pltnamespace, 
+                 app_namespace,
+                 # control parameters
+                 plmn_identity, 
+                 sst, 
+                 sd, 
+                 min_prb_policy_ratio, 
+                 max_prb_policy_ratio, 
+                 dedicated_prb_policy_ratio):    
+        super().__init__(xapp_handler, logger, server, xapp_name, rmr_port, mrc, http_port, pltnamespace, app_namespace)
         self.service_style_name = "Radio Resource Allocation Control"
         self.plmn_identity = plmn_identity
         self.sst = sst

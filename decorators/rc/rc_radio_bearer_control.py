@@ -1,17 +1,25 @@
-import numpy as np
-
-
-# xDevSM modules
-from rc.rc_control_base import RCControlBase
-from sm_framework.py_oran.rc import RCFunctionDef as funcdef
+# import base decorator
+from decorators.rc.rc_control_base import RCControlBase
 
 class RadioBearerControl(RCControlBase):
     """
-    Radio Bearer Control Xapp
+    Radio Bearer Control Decorator
     """
-    
-    def __init__(self, address, drb_id, qos_flow_id, qos_flow_mapping_indication):
-        super().__init__(address, entrypoint=None)
+    def __init__(self, 
+                 xapp_handler, 
+                 logger, 
+                 server, 
+                 xapp_name, 
+                 rmr_port,
+                 mrc, 
+                 http_port, 
+                 pltnamespace, 
+                 app_namespace,
+                 # control parameters
+                 drb_id, 
+                 qos_flow_id, 
+                 qos_flow_mapping_indication):
+        super().__init__(xapp_handler, logger, server, xapp_name, rmr_port,mrc, http_port, pltnamespace, app_namespace)
         self.service_style_name = "Radio Bearer Control"
         self.drb_id = drb_id
         self.qos_flow_id = qos_flow_id
@@ -36,8 +44,8 @@ class RadioBearerControl(RCControlBase):
                                                             qos_flow_id=self.qos_flow_id, 
                                                             qos_flow_mapping_indication=self.qos_flow_mapping_indication)
         else:
-            self.logger.error("xDevSM does not support control action ID: {}".format(control_action_id))
-        
+            self.logger.error("[RadioBearerControl] xDevSM does not support control action ID: {}".format(control_action_id))
+
     def logic(self):
         self.run(thread=True)
         pass
