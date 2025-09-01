@@ -12,7 +12,7 @@ import ricxappframe.xapp_rest as ricrest
 
 # utility
 from utils.constants import Values
-from xDevSM.utils.utility import write_routing_table
+from utils.utility import write_routing_table
 
 # xDevSM imports
 from handlers.I_xDevSM_xapp import BasexDevSMXapp
@@ -128,7 +128,6 @@ class xDevSMRMRXapp(RMRXapp, BasexDevSMXapp):
         ----------
         json object containing E2 node related information
         """
-        self.logger.info("Getting gnb {} info".format(e2node.inventory_name))
         uri_e2_mgr = self.e2mgr_link + e2node.inventory_name
 
         response = requests.get(uri_e2_mgr)

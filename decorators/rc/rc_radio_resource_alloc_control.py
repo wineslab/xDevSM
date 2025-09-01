@@ -17,12 +17,12 @@ class RadioResourceAllocationControl(RCControlBase):
                  pltnamespace, 
                  app_namespace,
                  # control parameters
-                 plmn_identity, 
-                 sst, 
-                 sd, 
-                 min_prb_policy_ratio, 
-                 max_prb_policy_ratio, 
-                 dedicated_prb_policy_ratio):    
+                 plmn_identity=None, 
+                 sst=None, 
+                 sd=None, 
+                 min_prb_policy_ratio=None, 
+                 max_prb_policy_ratio=None, 
+                 dedicated_prb_policy_ratio=None):    
         super().__init__(xapp_handler, logger, server, xapp_name, rmr_port, mrc, http_port, pltnamespace, app_namespace)
         self.service_style_name = "Radio Resource Allocation Control"
         self.plmn_identity = plmn_identity
@@ -50,9 +50,28 @@ class RadioResourceAllocationControl(RCControlBase):
     def set_dedicated_prb_policy_ratio(self, dedicated_prb_policy_ratio):
         self.dedicated_prb_policy_ratio = dedicated_prb_policy_ratio
 
+    def get_plmn_identity(self):
+        return self.plmn_identity
+
+    def get_sst(self):
+        return self.sst
+
+    def get_sd(self):
+        return self.sd
+
+    def get_min_prb_policy_ratio(self):
+        return self.min_prb_policy_ratio
+
+    def get_max_prb_policy_ratio(self):
+        return self.max_prb_policy_ratio
+
+    def get_dedicated_prb_policy_ratio(self):
+        return self.dedicated_prb_policy_ratio
+
     def generate_control_request(self, ue_id, control_action_id=6):
 
         if control_action_id == 6: # Slice-level PRB quota
+            # TODO Add checks on the parameters
             self.wrapper.generate_radio_resource_allocation_control_frmt_1(self.style,
                                                                         ue_id=ue_id,
                                                                         plmn_identity=self.plmn_identity,

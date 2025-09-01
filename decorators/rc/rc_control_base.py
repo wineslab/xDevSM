@@ -37,12 +37,14 @@ class RCControlBase(BaseXDevSMWrapper):
     
     
     def handle(self, xapp, summary, sbuf):
-        xapp.logger.info("[RCControlBase] received: {}".format(summary))
         if summary[rmr.RMR_MS_MSG_TYPE] == Values.RIC_CONTROL_ACK:
             xapp.logger.info("[RCControlBase] Received control ack")
+            xapp.logger.debug("[RCControlBase] {}".format(summary))
         elif summary[rmr.RMR_MS_MSG_TYPE] == Values.RIC_CONTROL_FAILURE:
             xapp.logger.error("[RCControlBase] Received failure ack")
-
+            xapp.logger.debug("[RCControlBase] {}".format(summary))
+        else:
+            xapp.logger.debug("[RCControlBase] This is not an RC message [{}]".format(summary[rmr.RMR_MS_MSG_TYPE]))
         self._xapp_handler.handle(xapp, summary, sbuf)
         # xapp.rmr_free(sbuf)
     

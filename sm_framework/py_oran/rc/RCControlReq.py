@@ -280,7 +280,6 @@ class RCControlReqWrapper():
         param_name = param_name_bytes.decode('utf-8')
         print("Setting Parameter: {}".format(param_name))
 
-        # FIXME -> make these as paramters
         PLMN = ByteArray()
         PLMN.from_hex(plmn_identity)
        

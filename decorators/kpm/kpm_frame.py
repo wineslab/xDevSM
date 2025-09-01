@@ -44,14 +44,14 @@ class XappKpmFrame(BaseXDevSMWrapper):
 
     def handle(self, xapp, summary, sbuf):
 
-        xapp.logger.info("[XappKpmFrame] received: {}".format(summary))
+        xapp.logger.debug("[XappKpmFrame] received: {}".format(summary))
 
         if summary[rmr.RMR_MS_MSG_TYPE] == Values.RIC_INDICATION:
             self._handle_indication(xapp, summary) # FIXME maybe better with a private method 
         elif summary[rmr.RMR_MS_MSG_TYPE] == Values.RIC_ERROR_INDICATION:
             xapp.logger.error("[XappKpmFrame] Error in indication message")
         else:
-            xapp.logger.info("[XappKpmFrame] not recognized kpm message type: {}".format(summary[rmr.RMR_MS_MSG_TYPE]))
+            xapp.logger.debug("[XappKpmFrame] not recognized kpm message type: {}".format(summary[rmr.RMR_MS_MSG_TYPE]))
         
         self._xapp_handler.handle(xapp, summary, sbuf)
         # xapp.rmr_free(sbuf)
@@ -272,3 +272,15 @@ class XappKpmFrame(BaseXDevSMWrapper):
         subscription id for that gnb
         """
         return self.subscription_id[inventory_name]
+
+    def _remove_sub_id(self, sub_id: str):
+        to_remove = None
+        for key in self.subscription_id.keys():
+            if self.subscription_id[key] == sub_id:
+                to_remove = key
+                break
+        
+        if to_remove is None:
+            self.logger.error("subscription id not found")
+        else:
+            del self.subscription_id[to_remove]

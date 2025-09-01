@@ -1,4 +1,5 @@
 import ctypes
+from sm_framework.py_oran.kpm.KpmIndicationMsg import ue_id_e2sm_t, global_ng_ran_node_id_t, global_ng_enb_id_t, e2sm_plmn_t
 from sm_framework.py_oran.rc.enums import * 
 
 class e2ap_gnb_id_t(ctypes.Structure):
@@ -7,12 +8,12 @@ class e2ap_gnb_id_t(ctypes.Structure):
         ("unused", ctypes.c_uint32)  # uint32_t unused
     ]
 
-class e2sm_plmn_t(ctypes.Structure):
-    _fields_ = [
-        ("mcc", ctypes.c_uint16),         # uint16_t mcc
-        ("mnc", ctypes.c_uint16),         # uint16_t mnc
-        ("mnc_digit_len", ctypes.c_uint8) # uint8_t mnc_digit_len
-    ]
+# class e2sm_plmn_t(ctypes.Structure):
+#     _fields_ = [
+#         ("mcc", ctypes.c_uint16),         # uint16_t mcc
+#         ("mnc", ctypes.c_uint16),         # uint16_t mnc
+#         ("mnc_digit_len", ctypes.c_uint8) # uint8_t mnc_digit_len
+#     ]
 
 
 class global_gnb_id_t(ctypes.Structure):
@@ -27,31 +28,31 @@ class global_gnb_id_t(ctypes.Structure):
     ]
 
 
-class global_ng_enb_id_t(ctypes.Structure):
-    class _Union(ctypes.Union):
-        _fields_ = [
-            ("macro_ng_enb_id", ctypes.c_uint32),       # uint32_t macro_ng_enb_id
-            ("short_macro_ng_enb_id", ctypes.c_uint32), # uint32_t short_macro_ng_enb_id
-            ("long_macro_ng_enb_id", ctypes.c_uint32)   # uint32_t long_macro_ng_enb_id
-        ]
+# class global_ng_enb_id_t(ctypes.Structure):
+#     class _Union(ctypes.Union):
+#         _fields_ = [
+#             ("macro_ng_enb_id", ctypes.c_uint32),       # uint32_t macro_ng_enb_id
+#             ("short_macro_ng_enb_id", ctypes.c_uint32), # uint32_t short_macro_ng_enb_id
+#             ("long_macro_ng_enb_id", ctypes.c_uint32)   # uint32_t long_macro_ng_enb_id
+#         ]
     
-    _fields_ = [
-        ("plmn_id", e2sm_plmn_t),        # e2sm_plmn_t plmn_id
-        ("type", ng_enb_type_id_e),      # ng_enb_type_id_e type
-        ("union", _Union)                
-    ]
+#     _fields_ = [
+#         ("plmn_id", e2sm_plmn_t),        # e2sm_plmn_t plmn_id
+#         ("type", ng_enb_type_id_e),      # ng_enb_type_id_e type
+#         ("union", _Union)                
+#     ]
 
-class global_ng_ran_node_id_t(ctypes.Structure):
-    class _Union(ctypes.Union):
-        _fields_ = [
-            ("global_gnb_id", global_gnb_id_t),          # global_gnb_id_t global_gnb_id
-            ("global_ng_enb_id", global_ng_enb_id_t)     # global_ng_enb_id_t global_ng_enb_id
-        ]
+# class global_ng_ran_node_id_t(ctypes.Structure):
+#     class _Union(ctypes.Union):
+#         _fields_ = [
+#             ("global_gnb_id", global_gnb_id_t),          # global_gnb_id_t global_gnb_id
+#             ("global_ng_enb_id", global_ng_enb_id_t)     # global_ng_enb_id_t global_ng_enb_id
+#         ]
     
-    _fields_ = [
-        ("type", ng_ran_node_type_id_e), # ng_ran_node_type_id_e type
-        ("union", _Union)                    # Anonymous union
-    ]
+#     _fields_ = [
+#         ("type", ng_ran_node_type_id_e), # ng_ran_node_type_id_e type
+#         ("union", _Union)                    # Anonymous union
+#     ]
 
 class guami_t(ctypes.Structure):
     _fields_ = [
@@ -61,46 +62,46 @@ class guami_t(ctypes.Structure):
         ("amf_ptr", ctypes.c_uint16)       # uint16_t amf_ptr (not constrained to 6 bits) # FIXME
     ]
 
-class gnb_e2sm_t(ctypes.Structure):
-    _fields_ = [
-        ("amf_ue_ngap_id", ctypes.c_uint64),            # uint64_t amf_ue_ngap_id
-        ("guami", guami_t),                             # guami_t guami (TOBEFIXED)
-        ("gnb_cu_ue_f1ap_lst_len", ctypes.c_size_t),    # size_t gnb_cu_ue_f1ap_lst_len
-        ("gnb_cu_ue_f1ap_lst", ctypes.POINTER(ctypes.c_uint32)), # uint32_t* gnb_cu_ue_f1ap_lst
-        ("gnb_cu_cp_ue_e1ap_lst_len", ctypes.c_size_t), # size_t gnb_cu_cp_ue_e1ap_lst_len
-        ("gnb_cu_cp_ue_e1ap_lst", ctypes.POINTER(ctypes.c_uint32)), # uint32_t* gnb_cu_cp_ue_e1ap_lst
-        ("ran_ue_id", ctypes.POINTER(ctypes.c_uint64)), # uint64_t* ran_ue_id
-        ("ng_ran_node_ue_xnap_id", ctypes.POINTER(ctypes.c_uint32)), # uint32_t* ng_ran_node_ue_xnap_id
-        ("global_gnb_id", ctypes.POINTER(global_gnb_id_t)), # global_gnb_id_t* global_gnb_id
-        ("global_ng_ran_node_id", ctypes.POINTER(global_ng_ran_node_id_t)) # global_ng_ran_node_id_t* global_ng_ran_node_id
-    ]
+# class gnb_e2sm_t(ctypes.Structure):
+#     _fields_ = [
+#         ("amf_ue_ngap_id", ctypes.c_uint64),            # uint64_t amf_ue_ngap_id
+#         ("guami", guami_t),                             # guami_t guami (TOBEFIXED)
+#         ("gnb_cu_ue_f1ap_lst_len", ctypes.c_size_t),    # size_t gnb_cu_ue_f1ap_lst_len
+#         ("gnb_cu_ue_f1ap_lst", ctypes.POINTER(ctypes.c_uint32)), # uint32_t* gnb_cu_ue_f1ap_lst
+#         ("gnb_cu_cp_ue_e1ap_lst_len", ctypes.c_size_t), # size_t gnb_cu_cp_ue_e1ap_lst_len
+#         ("gnb_cu_cp_ue_e1ap_lst", ctypes.POINTER(ctypes.c_uint32)), # uint32_t* gnb_cu_cp_ue_e1ap_lst
+#         ("ran_ue_id", ctypes.POINTER(ctypes.c_uint64)), # uint64_t* ran_ue_id
+#         ("ng_ran_node_ue_xnap_id", ctypes.POINTER(ctypes.c_uint32)), # uint32_t* ng_ran_node_ue_xnap_id
+#         ("global_gnb_id", ctypes.POINTER(global_gnb_id_t)), # global_gnb_id_t* global_gnb_id
+#         ("global_ng_ran_node_id", ctypes.POINTER(global_ng_ran_node_id_t)) # global_ng_ran_node_id_t* global_ng_ran_node_id
+#     ]
 
-class gnb_du_e2sm_t(ctypes.Structure):
-    _fields_ = [
-        ("gnb_cu_ue_f1ap", ctypes.c_uint32),  # uint32_t gnb_cu_ue_f1ap
-        ("ran_ue_id", ctypes.POINTER(ctypes.c_uint64))  # uint64_t* ran_ue_id (OPTIONAL)
-    ]
+# class gnb_du_e2sm_t(ctypes.Structure):
+#     _fields_ = [
+#         ("gnb_cu_ue_f1ap", ctypes.c_uint32),  # uint32_t gnb_cu_ue_f1ap
+#         ("ran_ue_id", ctypes.POINTER(ctypes.c_uint64))  # uint64_t* ran_ue_id (OPTIONAL)
+#     ]
 
-class gnb_cu_up_e2sm_t(ctypes.Structure):
-    _fields_ = [
-        ("gnb_cu_cp_ue_e1ap", ctypes.c_uint32),  # uint32_t gnb_cu_cp_ue_e1ap
-        ("ran_ue_id", ctypes.POINTER(ctypes.c_uint64))  # uint64_t* ran_ue_id (OPTIONAL)
-    ]
+# class gnb_cu_up_e2sm_t(ctypes.Structure):
+#     _fields_ = [
+#         ("gnb_cu_cp_ue_e1ap", ctypes.c_uint32),  # uint32_t gnb_cu_cp_ue_e1ap
+#         ("ran_ue_id", ctypes.POINTER(ctypes.c_uint64))  # uint64_t* ran_ue_id (OPTIONAL)
+#     ]
 
-class ng_enb_e2sm_t(ctypes.Structure):
-    _fields_ = [
-        ("amf_ue_ngap_id", ctypes.c_uint64),               # uint64_t amf_ue_ngap_id
-        ("guami", guami_t),                                 # guami_t guami
-        ("ng_enb_cu_ue_w1ap_id", ctypes.POINTER(ctypes.c_uint32)),  # uint32_t* ng_enb_cu_ue_w1ap_id
-        ("ng_ran_node_ue_xnap_id", ctypes.POINTER(ctypes.c_uint32)),  # uint32_t* ng_ran_node_ue_xnap_id
-        ("global_ng_enb_id", ctypes.POINTER(global_ng_enb_id_t)),     # global_ng_enb_id_t* global_ng_enb_id (OPTIONAL)
-        ("global_ng_ran_node_id", ctypes.POINTER(global_ng_ran_node_id_t))  # global_ng_ran_node_id_t* global_ng_ran_node_id
-    ]
+# class ng_enb_e2sm_t(ctypes.Structure):
+#     _fields_ = [
+#         ("amf_ue_ngap_id", ctypes.c_uint64),               # uint64_t amf_ue_ngap_id
+#         ("guami", guami_t),                                 # guami_t guami
+#         ("ng_enb_cu_ue_w1ap_id", ctypes.POINTER(ctypes.c_uint32)),  # uint32_t* ng_enb_cu_ue_w1ap_id
+#         ("ng_ran_node_ue_xnap_id", ctypes.POINTER(ctypes.c_uint32)),  # uint32_t* ng_ran_node_ue_xnap_id
+#         ("global_ng_enb_id", ctypes.POINTER(global_ng_enb_id_t)),     # global_ng_enb_id_t* global_ng_enb_id (OPTIONAL)
+#         ("global_ng_ran_node_id", ctypes.POINTER(global_ng_ran_node_id_t))  # global_ng_ran_node_id_t* global_ng_ran_node_id
+#     ]
 
-class ng_enb_du_e2sm_t(ctypes.Structure):
-    _fields_ = [
-        ("ng_enb_cu_ue_w1ap_id", ctypes.c_uint32)  # uint32_t ng_enb_cu_ue_w1ap_id
-    ]
+# class ng_enb_du_e2sm_t(ctypes.Structure):
+#     _fields_ = [
+#         ("ng_enb_cu_ue_w1ap_id", ctypes.c_uint32)  # uint32_t ng_enb_cu_ue_w1ap_id
+#     ]
 
 class global_enb_id_t(ctypes.Structure):
     _fields_ = [
@@ -112,50 +113,50 @@ class global_enb_id_t(ctypes.Structure):
         ("long_macro_enb_id", ctypes.c_uint32)                        # uint32_t long_macro_enb_id (BIT STRING (SIZE(21)))
     ]
 
-class en_gnb_e2sm_t(ctypes.Structure):
-    _fields_ = [
-        ("enb_ue_x2ap_id", ctypes.c_uint16),                            # uint16_t enb_ue_x2ap_id
-        ("enb_ue_x2ap_id_extension", ctypes.POINTER(ctypes.c_uint16)),  # uint16_t* enb_ue_x2ap_id_extension (OPTIONAL)
-        ("global_enb_id", global_enb_id_t),                              # global_enb_id_t global_enb_id
-        ("gnb_cu_ue_f1ap_lst", ctypes.POINTER(ctypes.c_uint32)),        # uint32_t* gnb_cu_ue_f1ap_lst
-        ("gnb_cu_cp_ue_e1ap_lst_len", ctypes.c_size_t),                  # size_t gnb_cu_cp_ue_e1ap_lst_len
-        ("gnb_cu_cp_ue_e1ap_lst", ctypes.POINTER(ctypes.c_uint32)),     # uint32_t* gnb_cu_cp_ue_e1ap_lst
-        ("ran_ue_id", ctypes.POINTER(ctypes.c_uint64))                   # uint64_t* ran_ue_id (OPTIONAL)
-    ]
+# class en_gnb_e2sm_t(ctypes.Structure):
+#     _fields_ = [
+#         ("enb_ue_x2ap_id", ctypes.c_uint16),                            # uint16_t enb_ue_x2ap_id
+#         ("enb_ue_x2ap_id_extension", ctypes.POINTER(ctypes.c_uint16)),  # uint16_t* enb_ue_x2ap_id_extension (OPTIONAL)
+#         ("global_enb_id", global_enb_id_t),                              # global_enb_id_t global_enb_id
+#         ("gnb_cu_ue_f1ap_lst", ctypes.POINTER(ctypes.c_uint32)),        # uint32_t* gnb_cu_ue_f1ap_lst
+#         ("gnb_cu_cp_ue_e1ap_lst_len", ctypes.c_size_t),                  # size_t gnb_cu_cp_ue_e1ap_lst_len
+#         ("gnb_cu_cp_ue_e1ap_lst", ctypes.POINTER(ctypes.c_uint32)),     # uint32_t* gnb_cu_cp_ue_e1ap_lst
+#         ("ran_ue_id", ctypes.POINTER(ctypes.c_uint64))                   # uint64_t* ran_ue_id (OPTIONAL)
+#     ]
 
-class e2sm_gummei_t(ctypes.Structure):
-    _fields_ = [
-        ("plmn_id", e2sm_plmn_t),      # e2sm_plmn_t plmn_id
-        ("mme_group_id", ctypes.c_uint16),  # uint16_t mme_group_id
-        ("mme_code", ctypes.c_uint8)       # uint8_t mme_code
-    ]
+# class e2sm_gummei_t(ctypes.Structure):
+#     _fields_ = [
+#         ("plmn_id", e2sm_plmn_t),      # e2sm_plmn_t plmn_id
+#         ("mme_group_id", ctypes.c_uint16),  # uint16_t mme_group_id
+#         ("mme_code", ctypes.c_uint8)       # uint8_t mme_code
+#     ]
 
-class enb_e2sm_t(ctypes.Structure):
-    _fields_ = [
-        ("mme_ue_s1ap_id", ctypes.c_uint32),                            # uint32_t mme_ue_s1ap_id
-        ("gummei", e2sm_gummei_t),                                       # e2sm_gummei_t gummei
-        # ("enb_ue_x2ap_id", ctypes.POINTER(ctypes.c_uint16)),             # uint16_t* enb_ue_x2ap_id (OPTIONAL)
-        # ("enb_ue_x2ap_id_extension", ctypes.POINTER(ctypes.c_uint16)),   # uint16_t* enb_ue_x2ap_id_extension (OPTIONAL)
-        # ("global_enb_id", ctypes.POINTER(global_enb_id_t))               # global_enb_id_t* global_enb_id (OPTIONAL)
-    ]
+# class enb_e2sm_t(ctypes.Structure):
+#     _fields_ = [
+#         ("mme_ue_s1ap_id", ctypes.c_uint32),                            # uint32_t mme_ue_s1ap_id
+#         ("gummei", e2sm_gummei_t),                                       # e2sm_gummei_t gummei
+#         # ("enb_ue_x2ap_id", ctypes.POINTER(ctypes.c_uint16)),             # uint16_t* enb_ue_x2ap_id (OPTIONAL)
+#         # ("enb_ue_x2ap_id_extension", ctypes.POINTER(ctypes.c_uint16)),   # uint16_t* enb_ue_x2ap_id_extension (OPTIONAL)
+#         # ("global_enb_id", ctypes.POINTER(global_enb_id_t))               # global_enb_id_t* global_enb_id (OPTIONAL)
+#     ]
 
 
-class ue_id_e2sm_t(ctypes.Structure):
-    class Union(ctypes.Union):
-        _fields_ = [
-            ("gnb", gnb_e2sm_t),  # Direct structure, no POINTER
-            ("gnb_du", gnb_du_e2sm_t),
-            ("gnb_cu_up", gnb_cu_up_e2sm_t),
-            ("ng_enb", ng_enb_e2sm_t),
-            ("ng_enb_du", ng_enb_du_e2sm_t),
-            ("en_gnb", en_gnb_e2sm_t),
-            ("enb", enb_e2sm_t),
-        ]
+# class ue_id_e2sm_t(ctypes.Structure):
+#     class Union(ctypes.Union):
+#         _fields_ = [
+#             ("gnb", gnb_e2sm_t),  # Direct structure, no POINTER
+#             ("gnb_du", gnb_du_e2sm_t),
+#             ("gnb_cu_up", gnb_cu_up_e2sm_t),
+#             ("ng_enb", ng_enb_e2sm_t),
+#             ("ng_enb_du", ng_enb_du_e2sm_t),
+#             ("en_gnb", en_gnb_e2sm_t),
+#             ("enb", enb_e2sm_t),
+#         ]
 
-    _fields_ = [
-        ("type", ue_id_e2sm_e),  # Enum or integer type
-        ("union", Union),  # Directly embedded union
-    ]
+#     _fields_ = [
+#         ("type", ue_id_e2sm_e),  # Enum or integer type
+#         ("union", Union),  # Directly embedded union
+#     ]
 
 class e2sm_rc_ctrl_hdr_frmt_1_t(ctypes.Structure):
     _fields_ = [
