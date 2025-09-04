@@ -15,6 +15,7 @@ from utils.constants import Values
 import sm_framework.py_oran.rc.RCFunctionDef as funcdef
 import sm_framework.py_oran.rc.RCControlReq as ctrlReq
 import sm_framework.py_oran.rc.RCControlHdr as ctrlhdr
+import sm_framework.py_oran.kpm.KpmIndicationMsg as kpmmsg
 
 class RCControlBase(BaseXDevSMWrapper):
     def __init__(self, xapp_handler, logger, server, xapp_name, rmr_port, mrc, http_port, pltnamespace, app_namespace):
@@ -158,11 +159,11 @@ class RCControlBase(BaseXDevSMWrapper):
         self.logger.info("[RCControlBase] Deleting RMR rule for control messages")
 
     ########## Temporary mock functions for UE ID ##########
-    def get_mock_du_ue_id(self) -> ctrlhdr.ue_id_e2sm_t:
-        ue_id = ctrlhdr.ue_id_e2sm_t()
-        ue_id.type = ctrlhdr.ue_id_e2sm_e.GNB_DU_UE_ID_E2SM
+    def get_mock_du_ue_id(self) -> kpmmsg.ue_id_e2sm_t:
+        ue_id = kpmmsg.ue_id_e2sm_t()
+        ue_id.type = kpmmsg.ue_id_e2sm_e.GNB_DU_UE_ID_E2SM
         
-        gnb_du = ctrlhdr.gnb_du_e2sm_t()
+        gnb_du = kpmmsg.gnb_du_e2sm_t()
 
         gnb_du.gnb_cu_ue_f1ap = 0
         # gnb_du.ran_ue_id = 0 # We don't have this information in KPM messages in srs
@@ -171,19 +172,19 @@ class RCControlBase(BaseXDevSMWrapper):
         
         return ue_id
     
-    def get_mock_ue_id(self, ran_ue_id: ctypes.c_ulong=1) -> ctrlhdr.ue_id_e2sm_t:
-        ue_id = ctrlhdr.ue_id_e2sm_t()
+    def get_mock_ue_id(self, ran_ue_id: ctypes.c_ulong=1) -> kpmmsg.ue_id_e2sm_t:
+        ue_id = kpmmsg.ue_id_e2sm_t()
         ue_id.type = ctrlhdr.ue_id_e2sm_e.GNB_UE_ID_E2SM
         
-        gnb_mono = ctrlhdr.gnb_e2sm_t()
+        gnb_mono = kpmmsg.gnb_e2sm_t()
         gnb_mono.amf_ue_ngap_id = 9
         
         # guami
-        plmn_id = ctrlhdr.e2sm_plmn_t()
+        plmn_id = kpmmsg.e2sm_plmn_t()
         plmn_id.mcc = 1
         plmn_id.mnc = 1
         plmn_id.mnc_digit_len = 2 
-        guami = ctrlhdr.guami_t()
+        guami = kpmmsg.guami_t()
         guami.plmn_id = plmn_id
         guami.amf_region_id = 1
         guami.amf_set_id = 1

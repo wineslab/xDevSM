@@ -1,5 +1,5 @@
 import ctypes
-from sm_framework.py_oran.kpm.KpmIndicationMsg import ue_id_e2sm_t, global_ng_ran_node_id_t, global_ng_enb_id_t, e2sm_plmn_t
+from sm_framework.py_oran.kpm.KpmIndicationMsg import ue_id_e2sm_t, e2sm_plmn_t
 from sm_framework.py_oran.rc.enums import * 
 
 class e2ap_gnb_id_t(ctypes.Structure):
