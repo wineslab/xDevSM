@@ -243,10 +243,14 @@ class XappKpmFrame(BaseXDevSMWrapper):
             gnb_du = ue_meas_report.union.gnb_du
             if gnb_du.ran_ue_id:
                 return gnb_du.ran_ue_id.contents.value
+            else:
+                return gnb_du.gnb_cu_ue_f1ap
         elif ue_meas_report.type.value == ue_id_e2sm_e.GNB_CU_UP_UE_ID_E2SM:
             gnb_cu = ue_meas_report.union.gnb_cu_up
             if gnb_cu.ran_ue_id:
                 return gnb_cu.ran_ue_id.contents.value
+            else:
+                return gnb_cu.gnb_cu_cp_ue_e1ap
         else:
             self.logger.error("[XappKpmFrame] format not supported ({})".format(ue_meas_report.type.value))
 
