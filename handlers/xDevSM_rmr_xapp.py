@@ -158,6 +158,52 @@ class xDevSMRMRXapp(RMRXapp, BasexDevSMXapp):
         """
         return self.xapp_name
 
+    def get_selected_e2node_info(self, e2node_inventory_name=None):
+        """
+        Returns:
+        ----------
+        selected gnb, gnb info
+        """
+        selected_gnb = None
+        gnb_info = None
+
+        gnb_list = self.get_list_gnb_ids()
+
+        if len(gnb_list) == 0:
+            self.logger.info("[xDevSMRMRXapp] no gnb available")
+            return None, None
+
+        if not e2node_inventory_name:
+            # This logic considers each gnb available for that RIC
+            self.logger.info("[xDevSMRMRXapp] selecting the first gnb connected")
+        else:
+            # This logic only considers the passed gnb
+            self.logger.info("[xDevSMRMRXapp] querying status of passed gnb {}".format(e2node_inventory_name))
+
+        for index, gnb in enumerate(gnb_list):
+            if e2node_inventory_name and gnb.inventory_name != e2node_inventory_name:
+                continue
+
+            gnb_info = self.get_ran_info(e2node=gnb)
+
+            if gnb_info["connectionStatus"] != "CONNECTED":
+                self.logger.info("[xDevSMRMRXapp] E2 node {} not connected! Skipping...".format(gnb.inventory_name))
+                continue
+
+            selected_gnb = gnb
+            break
+
+        if selected_gnb is None:
+            if not e2node_inventory_name:
+                self.logger.info("[xDevSMRMRXapp] No gnb connected")
+            else:
+                self.logger.info("[xDevSMRMRXapp] Passed gnb {} not connected".format(e2node_inventory_name))
+            return None, None
+        else:
+            self.logger.info("[xDevSMRMRXapp] selected gnb {}".format(gnb.inventory_name))
+
+        return selected_gnb, gnb_info
+
     def loading_ports(self, messaging_format):
         http_port = None
         rmr_port = None
