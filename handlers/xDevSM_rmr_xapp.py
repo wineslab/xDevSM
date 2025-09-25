@@ -186,7 +186,6 @@ class xDevSMRMRXapp(RMRXapp, BasexDevSMXapp):
 
             gnb_info = self.get_ran_info(e2node=gnb)
 
-            # the behavior of the xapp is to subscribe to all the available gnbs
             if gnb_info["connectionStatus"] != "CONNECTED":
                 self.logger.info("[xDevSMRMRXapp] E2 node {} not connected! Skipping...".format(gnb.inventory_name))
                 continue
