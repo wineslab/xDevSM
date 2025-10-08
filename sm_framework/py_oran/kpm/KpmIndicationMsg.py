@@ -558,6 +558,8 @@ class KpmIndMsgWrapper():
         self.decode_indication_msg = wrap_functions(kpm_lib, 'kpm_dec_ind_msg_asn', KpmIndMsg, [ctypes.c_size_t, ctypes.POINTER(ctypes.c_uint8)])
 
     def decode(self) -> KpmIndMsg:
+        if self.byte_array is None:
+            return None
         self.kpm_ind_msg = self.decode_indication_msg(len(self.byte_array), self.byte_array)
         return self.kpm_ind_msg
 

@@ -97,9 +97,14 @@ class XappKpmFrame(BaseXDevSMWrapper):
         ba_ind_header = utility.get_c_byte_array_from_py_byte_string(indm.indication_header)
         ba_ind_msg = utility.get_c_byte_array_from_py_byte_string(indm.indication_message)
         
+        if ba_ind_header is None:
+            # information not decoded correctly
+            return
+        
         if ba_ind_msg is None:
             # information not decoded correctly
             return
+        
         
         # Indication hdr - decoding E2SM
         ind_hdr_mgr = KpmIndicationHdr.KpmIndHdrWrapper(ba_ind_header)

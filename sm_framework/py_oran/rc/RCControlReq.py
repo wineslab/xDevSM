@@ -615,7 +615,6 @@ class RCControlReqWrapper():
             return
         
         self.control_req.hdr.union.frmt_1.ctrl_act_id = control_action_ids_2["Slice-level PRB quota"]
-        self.control_req.msg.union.frmt_1.sz_ran_param = seq_ctrl_act[index_supported].sz_seq_assoc_ran_param
 
         # Creating ran parameter array
         RanParamArr = ctrl.seq_ran_param_t * self.control_req.msg.union.frmt_1.sz_ran_param
