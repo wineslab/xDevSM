@@ -118,12 +118,13 @@ class RCControlReqEncoded(ctypes.Structure):
     ]
 
 class RCControlReqWrapper():
-    def __init__(self):
+    def __init__(self, mock_du_ue_id):
         self.control_req: RCControlReq =  RCControlReq() # This should be built by using methods defined in this class
         self.free_hdr = wrap_functions(rc_lib, 'free_e2sm_rc_ctrl_hdr', None, [ctypes.POINTER(hdr.RCControlHdr)])
         self.free_msg = wrap_functions(rc_lib, 'free_e2sm_rc_ctrl_msg', None, [ctypes.POINTER(ctrl.RCControlMsg)])
         self.encode_hdr = wrap_functions(rc_lib, 'rc_enc_ctrl_hdr_asn', ByteArray, [ctypes.POINTER(hdr.RCControlHdr)])
         self.encode_msg = wrap_functions(rc_lib, 'rc_enc_ctrl_msg_asn', ByteArray, [ctypes.POINTER(ctrl.RCControlMsg)])
+        self.mock_du_ue_id = mock_du_ue_id
     
     def encode(self) -> RCControlReqEncoded:
         """
