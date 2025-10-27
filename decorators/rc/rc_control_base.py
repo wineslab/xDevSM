@@ -87,7 +87,7 @@ class RCControlBase(BaseXDevSMWrapper):
         """
         if ue_id is None:
             self.logger.info("[RCControlBase] using mock ue_id")
-            if not mock_du_ue_id:
+            if not self.mock_du_ue_id:
                 ue_id = self.get_mock_ue_id()
             else:
                 ue_id = self.get_mock_du_ue_id()
