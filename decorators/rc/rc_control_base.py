@@ -18,7 +18,7 @@ import sm_framework.py_oran.rc.RCControlHdr as ctrlhdr
 import sm_framework.py_oran.kpm.KpmIndicationMsg as kpmmsg
 
 class RCControlBase(BaseXDevSMWrapper):
-    def __init__(self, xapp_handler, logger, server, xapp_name, rmr_port, mrc, http_port, pltnamespace, app_namespace):
+    def __init__(self, xapp_handler, logger, server, xapp_name, rmr_port, mrc, http_port, pltnamespace, app_namespace, mock_du_ue_id):
 
         super().__init__(xapp_handler, logger, server)
         
@@ -29,6 +29,9 @@ class RCControlBase(BaseXDevSMWrapper):
         self.http_port = http_port
         self.pltnamespace = pltnamespace
         self.app_namespace = app_namespace
+
+        # protocol stack parameters
+        self.mock_du_ue_id = mock_du_ue_id
 
         self.rc_function_def_wrapper = funcdef.RCFuncDefWrapper(hex="")
         self.wrapper = ctrlReq.RCControlReqWrapper()
@@ -84,8 +87,10 @@ class RCControlBase(BaseXDevSMWrapper):
         """
         if ue_id is None:
             self.logger.info("[RCControlBase] using mock ue_id")
-            ue_id = self.get_mock_ue_id()
-            # ue_id = self.get_mock_du_ue_id()
+            if not mock_du_ue_id:
+                ue_id = self.get_mock_ue_id()
+            else:
+                ue_id = self.get_mock_du_ue_id()
 
         if not ran_func_dsc.ctrl:
             # TODO Add error message

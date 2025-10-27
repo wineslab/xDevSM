@@ -22,8 +22,9 @@ class RadioResourceAllocationControl(RCControlBase):
                  sd=None, 
                  min_prb_policy_ratio=None, 
                  max_prb_policy_ratio=None, 
-                 dedicated_prb_policy_ratio=None):    
-        super().__init__(xapp_handler, logger, server, xapp_name, rmr_port, mrc, http_port, pltnamespace, app_namespace)
+                 dedicated_prb_policy_ratio=None,
+                 mock_du_ue_id=False):
+        super().__init__(xapp_handler, logger, server, xapp_name, rmr_port, mrc, http_port, pltnamespace, app_namespace, mock_du_ue_id)
         self.service_style_name = "Radio Resource Allocation Control"
         self.plmn_identity = plmn_identity
         self.sst = sst
