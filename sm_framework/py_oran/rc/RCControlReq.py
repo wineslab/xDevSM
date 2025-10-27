@@ -558,7 +558,13 @@ class RCControlReqWrapper():
 
 
         self.control_req.hdr.union.frmt_1.ctrl_act_id = control_action_ids_1["QoS flow mapping configuration"]
-        self.control_req.msg.union.frmt_1.sz_ran_param = seq_ctrl_act[index_supported].sz_seq_assoc_ran_param
+
+        if not self.mock_du_ue_id:
+            print("Setting sz_ran_param to sz_seq_assoc_ran_param")
+            self.control_req.msg.union.frmt_1.sz_ran_param = seq_ctrl_act[index_supported].sz_seq_assoc_ran_param
+        else:
+            print("Setting sz_ran_param to 1")
+            self.control_req.msg.union.frmt_1.sz_ran_param = 1
 
         # Creating ran parameter array
         RanParamArr = ctrl.seq_ran_param_t * self.control_req.msg.union.frmt_1.sz_ran_param
