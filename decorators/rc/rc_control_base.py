@@ -86,10 +86,11 @@ class RCControlBase(BaseXDevSMWrapper):
         - ue_id: Optional UE identifier; if None, uses a mock one
         """
         if ue_id is None:
-            self.logger.info("[RCControlBase] using mock ue_id")
             if not self.mock_du_ue_id:
+                self.logger.info("[RCControlBase] using mock ue_id")
                 ue_id = self.get_mock_ue_id()
             else:
+                self.logger.info("[RCControlBase] using mock du_ue_id")
                 ue_id = self.get_mock_du_ue_id()
 
         if not ran_func_dsc.ctrl:
