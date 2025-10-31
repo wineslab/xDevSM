@@ -34,7 +34,7 @@ class RCControlBase(BaseXDevSMWrapper):
         self.mock_du_ue_id = mock_du_ue_id
 
         self.rc_function_def_wrapper = funcdef.RCFuncDefWrapper(hex="")
-        self.wrapper = ctrlReq.RCControlReqWrapper(self.mock_du_ue_id)
+        self.wrapper = ctrlReq.RCControlReqWrapper()
         self.service_style_name = None
         self.style = None
         self.add_rmr_rule()

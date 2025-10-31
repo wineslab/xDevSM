@@ -118,13 +118,12 @@ class RCControlReqEncoded(ctypes.Structure):
     ]
 
 class RCControlReqWrapper():
-    def __init__(self, mock_du_ue_id):
+    def __init__(self):
         self.control_req: RCControlReq =  RCControlReq() # This should be built by using methods defined in this class
         self.free_hdr = wrap_functions(rc_lib, 'free_e2sm_rc_ctrl_hdr', None, [ctypes.POINTER(hdr.RCControlHdr)])
         self.free_msg = wrap_functions(rc_lib, 'free_e2sm_rc_ctrl_msg', None, [ctypes.POINTER(ctrl.RCControlMsg)])
         self.encode_hdr = wrap_functions(rc_lib, 'rc_enc_ctrl_hdr_asn', ByteArray, [ctypes.POINTER(hdr.RCControlHdr)])
         self.encode_msg = wrap_functions(rc_lib, 'rc_enc_ctrl_msg_asn', ByteArray, [ctypes.POINTER(ctrl.RCControlMsg)])
-        self.mock_du_ue_id = mock_du_ue_id
     
     def encode(self) -> RCControlReqEncoded:
         """
@@ -560,12 +559,8 @@ class RCControlReqWrapper():
 
         self.control_req.hdr.union.frmt_1.ctrl_act_id = control_action_ids_1["QoS flow mapping configuration"]
 
-        if not self.mock_du_ue_id:
-            print("Setting sz_ran_param to sz_seq_assoc_ran_param")
-            self.control_req.msg.union.frmt_1.sz_ran_param = seq_ctrl_act[index_supported].sz_seq_assoc_ran_param
-        else:
-            print("Setting sz_ran_param to 1")
-            self.control_req.msg.union.frmt_1.sz_ran_param = 1
+        self.control_req.msg.union.frmt_1.sz_ran_param = seq_ctrl_act[index_supported].sz_seq_assoc_ran_param
+        # self.control_req.msg.union.frmt_1.sz_ran_param = 1
 
         # Creating ran parameter array
         RanParamArr = ctrl.seq_ran_param_t * self.control_req.msg.union.frmt_1.sz_ran_param
