@@ -282,7 +282,7 @@ class RCControlReqWrapper():
 
         PLMN = ByteArray()
         PLMN.from_hex(plmn_identity)
-       
+        
 
         # S-NSSAI encoding
         sst_value = sst.to_bytes(1, byteorder='big')
@@ -337,44 +337,51 @@ class RCControlReqWrapper():
         rrm_policy_member_list.contents.lst_ran_param = lst_param_type()
         # rrm_policy_member_list.contents.lst_ran_param[0].ran_pram_id = prb_quota_slice_level_ids["RRM Policy Member"] # -> missing same reasons as before
         
+        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.sz_ran_param_struct = 1
+        rrm_policy_member_inner_struct_type = ctrl.seq_ran_param_t * rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.sz_ran_param_struct
+        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct = rrm_policy_member_inner_struct_type()
         # RRM Policy Member
-        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.sz_ran_param_struct = 2
-        rrm_policy_member_type = ctrl.seq_ran_param_t * rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.sz_ran_param_struct
-        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct = rrm_policy_member_type()
+        rrm_policy_member_struct = rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct[0]
+        rrm_policy_member_struct.ran_param_id = prb_quota_slice_level_ids["RRM Policy Member"]
+        rrm_policy_member_struct.ran_param_val.type = ran_parameter_val_type_e.STRUCTURE_RAN_PARAMETER_VAL_TYPE
+        rrm_policy_member_struct.ran_param_val.union.strct = ctypes.pointer(ctrl.ran_param_struct_t())
+        rrm_policy_member = rrm_policy_member_struct.ran_param_val.union.strct.contents
+        rrm_policy_member.sz_ran_param_struct = 2 # Two elements: PLMN Identity and S-NSSAI
+        rrm_policy_member_type = ctrl.seq_ran_param_t * rrm_policy_member_struct.ran_param_val.union.strct.contents.sz_ran_param_struct
+        rrm_policy_member.ran_param_struct = rrm_policy_member_type()
        
 
-        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct[0].ran_param_id = prb_quota_slice_level_ids["PLMN Identity"]
-        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct[0].ran_param_val.type = ran_parameter_val_type_e.ELEMENT_KEY_FLAG_FALSE_RAN_PARAMETER_VAL_TYPE
+        rrm_policy_member.ran_param_struct[0].ran_param_id = prb_quota_slice_level_ids["PLMN Identity"]
+        rrm_policy_member.ran_param_struct[0].ran_param_val.type = ran_parameter_val_type_e.ELEMENT_KEY_FLAG_FALSE_RAN_PARAMETER_VAL_TYPE
         # Filling plmn identity
         plmn_identity = ctrl.ran_parameter_value_t()
         plmn_identity.type = ran_parameter_value_e.OCTET_STRING_RAN_PARAMETER_VALUE
         plmn_identity.union.octet_str_ran = PLMN 
-        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct[0].ran_param_val.union.flag_false = ctypes.pointer(plmn_identity)
+        rrm_policy_member.ran_param_struct[0].ran_param_val.union.flag_false = ctypes.pointer(plmn_identity)
 
         # Creating S-NSSAI structure
-        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_id = prb_quota_slice_level_ids["S-NSSAI"]
-        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_val.type = ran_parameter_val_type_e.STRUCTURE_RAN_PARAMETER_VAL_TYPE
-        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_val.union.strct = ctypes.pointer(ctrl.ran_param_struct_t())
-        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_val.union.strct.contents.sz_ran_param_struct = 2 # Two elements
-        snssai_type = ctrl.seq_ran_param_t * rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_val.union.strct.contents.sz_ran_param_struct
-        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_val.union.strct.contents.ran_param_struct = snssai_type()
+        rrm_policy_member.ran_param_struct[1].ran_param_id = prb_quota_slice_level_ids["S-NSSAI"]
+        rrm_policy_member.ran_param_struct[1].ran_param_val.type = ran_parameter_val_type_e.STRUCTURE_RAN_PARAMETER_VAL_TYPE
+        rrm_policy_member.ran_param_struct[1].ran_param_val.union.strct = ctypes.pointer(ctrl.ran_param_struct_t())
+        rrm_policy_member.ran_param_struct[1].ran_param_val.union.strct.contents.sz_ran_param_struct = 2 # Two elements
+        snssai_type = ctrl.seq_ran_param_t * rrm_policy_member.ran_param_struct[1].ran_param_val.union.strct.contents.sz_ran_param_struct
+        rrm_policy_member.ran_param_struct[1].ran_param_val.union.strct.contents.ran_param_struct = snssai_type()
 
         # Filling S-NSSAI Structure
         # SST
-        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_val.union.strct.contents.ran_param_struct[0].ran_param_id = prb_quota_slice_level_ids["SST"]
-        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_val.union.strct.contents.ran_param_struct[0].ran_param_val.type = ran_parameter_val_type_e.ELEMENT_KEY_FLAG_FALSE_RAN_PARAMETER_VAL_TYPE
+        rrm_policy_member.ran_param_struct[1].ran_param_val.union.strct.contents.ran_param_struct[0].ran_param_id = prb_quota_slice_level_ids["SST"]
+        rrm_policy_member.ran_param_struct[1].ran_param_val.union.strct.contents.ran_param_struct[0].ran_param_val.type = ran_parameter_val_type_e.ELEMENT_KEY_FLAG_FALSE_RAN_PARAMETER_VAL_TYPE
         sst = ctrl.ran_parameter_value_t()
         sst.type = ran_parameter_value_e.OCTET_STRING_RAN_PARAMETER_VALUE
         sst.union.octet_str_ran = sst_byte_array  
-        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_val.union.strct.contents.ran_param_struct[0].ran_param_val.union.flag_false = ctypes.pointer(sst)
-
+        rrm_policy_member.ran_param_struct[1].ran_param_val.union.strct.contents.ran_param_struct[0].ran_param_val.union.flag_false = ctypes.pointer(sst)
         # SD
-        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_val.union.strct.contents.ran_param_struct[1].ran_param_id = prb_quota_slice_level_ids["SD"]
-        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_val.union.strct.contents.ran_param_struct[1].ran_param_val.type = ran_parameter_val_type_e.ELEMENT_KEY_FLAG_FALSE_RAN_PARAMETER_VAL_TYPE
+        rrm_policy_member.ran_param_struct[1].ran_param_val.union.strct.contents.ran_param_struct[1].ran_param_id = prb_quota_slice_level_ids["SD"]
+        rrm_policy_member.ran_param_struct[1].ran_param_val.union.strct.contents.ran_param_struct[1].ran_param_val.type = ran_parameter_val_type_e.ELEMENT_KEY_FLAG_FALSE_RAN_PARAMETER_VAL_TYPE
         sd = ctrl.ran_parameter_value_t()
         sd.type = ran_parameter_value_e.OCTET_STRING_RAN_PARAMETER_VALUE
         sd.union.octet_str_ran = sd_byte_array
-        rrm_policy_member_list.contents.lst_ran_param[0].ran_param_struct.ran_param_struct[1].ran_param_val.union.strct.contents.ran_param_struct[1].ran_param_val.union.flag_false = ctypes.pointer(sd)
+        rrm_policy_member.ran_param_struct[1].ran_param_val.union.strct.contents.ran_param_struct[1].ran_param_val.union.flag_false = ctypes.pointer(sd)
 
         # inserting it in list element
         rrm_policy.ran_param_val.union.lst = rrm_policy_member_list
@@ -558,7 +565,9 @@ class RCControlReqWrapper():
 
 
         self.control_req.hdr.union.frmt_1.ctrl_act_id = control_action_ids_1["QoS flow mapping configuration"]
+
         self.control_req.msg.union.frmt_1.sz_ran_param = seq_ctrl_act[index_supported].sz_seq_assoc_ran_param
+        # self.control_req.msg.union.frmt_1.sz_ran_param = 1
 
         # Creating ran parameter array
         RanParamArr = ctrl.seq_ran_param_t * self.control_req.msg.union.frmt_1.sz_ran_param
@@ -615,6 +624,7 @@ class RCControlReqWrapper():
             return
         
         self.control_req.hdr.union.frmt_1.ctrl_act_id = control_action_ids_2["Slice-level PRB quota"]
+        self.control_req.msg.union.frmt_1.sz_ran_param = 1
 
         # Creating ran parameter array
         RanParamArr = ctrl.seq_ran_param_t * self.control_req.msg.union.frmt_1.sz_ran_param

@@ -18,8 +18,10 @@ class RadioBearerControl(RCControlBase):
                  # control parameters
                  drb_id, 
                  qos_flow_id, 
-                 qos_flow_mapping_indication):
-        super().__init__(xapp_handler, logger, server, xapp_name, rmr_port,mrc, http_port, pltnamespace, app_namespace)
+                 qos_flow_mapping_indication,
+                 ue_id_type=None,
+                 ue_id=None):
+        super().__init__(xapp_handler, logger, server, xapp_name, rmr_port,mrc, http_port, pltnamespace, app_namespace, ue_id_type, ue_id)
         self.service_style_name = "Radio Bearer Control"
         self.drb_id = drb_id
         self.qos_flow_id = qos_flow_id
@@ -35,11 +37,11 @@ class RadioBearerControl(RCControlBase):
     def set_qos_flow_mapping_indication(self, qos_flow_mapping_indication):
         self.qos_flow_mapping_indication = qos_flow_mapping_indication
     
-    def generate_control_request(self, ue_id=None, control_action_id=1):
+    def generate_control_request(self, ue_id_struct=None, control_action_id=1):
 
         if control_action_id == 2: # QoS flow mapping configuration
             self.wrapper.generate_radio_bearer_control_msg(style=self.style,
-                                                        ue_id=ue_id, 
+                                                            ue_id=ue_id_struct, 
                                                             drb_id=self.drb_id, 
                                                             qos_flow_id=self.qos_flow_id, 
                                                             qos_flow_mapping_indication=self.qos_flow_mapping_indication)
