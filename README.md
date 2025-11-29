@@ -19,7 +19,7 @@ The architecture separates three main layers:
 | **Service Model** | **Action Type** | **Supported Actions** |
 |-----------------------|--------------------|---------------------------|
 | **KPM (Key Performance Measurement)** | Measurement Actions | • Common Condition-based Measurement, UE-level Measurement |
-| **RC (RAN Control)** | Control Actions | • QoS Flow Mapping Configuration<br>• Slice-level PRB Quota Action<br>• Connected Mode Mobility Control |
+| **RC (RAN Control)** | Control Actions | • QoS Flow Mapping Configuration<br>• Slice-level PRB Quota Action (only monolithic gNBs)<br>• Connected Mode Mobility Control |
 ---
 
 ## Class Hierarchy
@@ -129,7 +129,7 @@ Provides the base class for the **Radio Control (RC)** Service Model. Defines sh
 | ---------------------------------- | --------------------------------------------------------- |--------------------------------------------------------- |
 | `RadioBearerControl` - 1           | Handles bearer-level control (QoS, bearer setup/release). | (2) QoS flow mapping configuration                       |
 | `RadioResourceAllocationControl`- 2| Manages resource allocation (e.g., PRB or scheduling).    | (6) Slice-level PRB quota                                |
-| `ConnectedModeMobilityControl` - 3 | Manages handover and mobility-related control procedures. | (1) Handover control  ⚠️                                 |
+| `ConnectedModeMobilityControl` - 3 | Manages handover and mobility-related control procedures. | (1) Handover control                                   |
 
 Each subclass defines Service Model–specific operations and message structures, invoking the appropriate encoder/decoder from `sm_framework.rc`.
 
@@ -180,7 +180,7 @@ rc_xapp = RadioResourceAllocationControl(xapp_gen,
 
 ```
 
-**Example: Connected Mode Mobility Control - ⚠️needs to be tested**
+**Example: Connected Mode Mobility Control**
 ```python
 xapp_gen = xDevSMRMRXapp("0.0.0.0")
 rc_xapp = ConnectedModeMobilityControl(xapp_gen,
