@@ -41,17 +41,22 @@ class RCControlBase(BaseXDevSMWrapper):
         self.service_style_name = None
         self.style = None
         self.add_rmr_rule()
+        self.__rc_control_ack_handler_suc = None
+        self.__rc_control_ack_handler_fail = None
     
     
     def handle(self, xapp, summary, sbuf):
         if summary[rmr.RMR_MS_MSG_TYPE] == Values.RIC_CONTROL_ACK:
             xapp.logger.info("[RCControlBase] Received control ack")
             xapp.logger.debug("[RCControlBase] {}".format(summary))
+            self._handle_control_ack_suc(xapp, summary, sbuf)
         elif summary[rmr.RMR_MS_MSG_TYPE] == Values.RIC_CONTROL_FAILURE:
             xapp.logger.error("[RCControlBase] Received failure ack")
             xapp.logger.debug("[RCControlBase] {}".format(summary))
+            self._handle_control_ack_fail(xapp, summary, sbuf)
         else:
             xapp.logger.debug("[RCControlBase] This is not an RC message [{}]".format(summary[rmr.RMR_MS_MSG_TYPE]))
+        # TODO add other handlers (REPORT, etc)
         self._xapp_handler.handle(xapp, summary, sbuf)
         # xapp.rmr_free(sbuf)
     
@@ -221,3 +226,23 @@ class RCControlBase(BaseXDevSMWrapper):
     def generate_control_request(self, ue_id_struct, control_action_id=1):
         # defined in the subclasses -> depending on the type of control requested
         pass
+    
+    
+
+    def _handle_control_ack_suc(self, xapp, summary, sbuf):
+        self.logger.info("[RCControlBase] Handling control ack - default implementation")
+        # TODO add ack decoding - not supported so far
+        if self.__rc_control_ack_handler_suc:
+            self.__rc_control_ack_handler_suc() # TODO define parameter with ack info decoded
+
+    def _handle_control_ack_fail(self, xapp, summary, sbuf):
+        self.logger.info("[RCControlBase] Handling control failure ack - default implementation")
+        # TODO add failure ack decoding - not supported so far
+        if self.__rc_control_ack_handler_fail:
+            self.__rc_control_ack_handler_fail() # TODO define parameter with ack info decoded
+    
+    def register_rc_control_ack_suc_callback(self, handler):
+        self.__rc_control_ack_handler_suc = handler
+    
+    def register_rc_control_ack_fail_callback(self, handler):
+        self.__rc_control_ack_handler_fail = handler
