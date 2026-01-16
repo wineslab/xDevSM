@@ -34,6 +34,8 @@ class XappKpmFrame(BaseXDevSMWrapper):
         self.subscription_id = {}
         self.kpm_func_def_wrapper = KpmFunctionDef.KpmFuncDefArrWrapper(hex="")
 
+        self.function_id = 2  # KPM function ID
+
         # callbacks
         self.__ind_msg_callback = None
         self.__sub_failed_callback = None
@@ -94,6 +96,10 @@ class XappKpmFrame(BaseXDevSMWrapper):
         # decoding E2AP
         indm.decode(summary[rmr.RMR_MS_PAYLOAD])
 
+        if indm.function_id() != self.function_id:
+            xapp.logger.info("[XappKpmFrame] received indication for different function id: {}".format(indm.function_id()))
+            return
+
         ba_ind_header = utility.get_c_byte_array_from_py_byte_string(indm.indication_header)
         ba_ind_msg = utility.get_c_byte_array_from_py_byte_string(indm.indication_message)
         
@@ -112,6 +118,7 @@ class XappKpmFrame(BaseXDevSMWrapper):
         if decoded_ind_hdr is None:
             xapp.logger.info("[XappKpmFrame] indication header not decoded correctly")
             return
+        
         xapp.logger.debug("[XappKpmFrame]indication header encoded: {}, indication header encoded ba: {}, indication header format decoded: {}".format(
             indm.indication_header, ba_ind_header, decoded_ind_hdr.type.value
         ))
@@ -210,7 +217,7 @@ class XappKpmFrame(BaseXDevSMWrapper):
         subscription_params = self.subscriber.SubscriptionParams(subscription_id=None,
                                         client_endpoint=client_endpoint,
                                         meid=gnb.inventory_name,                          
-                                        ran_function_id=2,
+                                        ran_function_id=self.function_id,
                                         e2_subscription_directives=subsDirective,
                                         subscription_details=[subscription_detail])
         self.logger.info(subscription_params)
