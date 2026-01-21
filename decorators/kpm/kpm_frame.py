@@ -96,8 +96,8 @@ class XappKpmFrame(BaseXDevSMWrapper):
         # decoding E2AP
         indm.decode(summary[rmr.RMR_MS_PAYLOAD])
 
-        if indm.function_id() != self.function_id:
-            xapp.logger.info("[XappKpmFrame] received indication for different function id: {}".format(indm.function_id()))
+        if indm.function_id != self.function_id:
+            xapp.logger.info("[XappKpmFrame] received indication for different function id: {}".format(indm.function_id))
             return
 
         ba_ind_header = utility.get_c_byte_array_from_py_byte_string(indm.indication_header)
