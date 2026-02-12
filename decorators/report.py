@@ -38,7 +38,7 @@ class xAppReportService(BaseXDevSMWrapper):
 
         # TODO do we have specific parameters for report decorator?
         
-        self.function_id = -1  # DApp function ID
+        self.function_id = -1
         
         self.uri_subscriptions = Values.GENERAL_PATH.format(self.pltnamespace, Values.SUBSCRIPTION_SERVICE, self.pltnamespace, Values.SUBSCRIPTION_PORT) + "/ric/v1/subscriptions"
         self.subscriber = subscribe.NewSubscriber(uri=self.uri_subscriptions, rmr_port=self.rmr_port)

@@ -71,7 +71,6 @@ class DAppReport(xAppReportService):
     
     def handle(self, xapp, summary, sbuf):
         xapp.logger.info("[DAppReport] received: {}".format(summary))
-
         if summary[rmr.RMR_MS_MSG_TYPE] == Values.RIC_INDICATION:
             xapp.logger.info("[DAppReport] Handling DApp Report Request message")
             self._handle_indication(xapp, summary)

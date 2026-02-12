@@ -27,6 +27,7 @@ class DAppE3IndPayloadWrapper():
         self.ran_function_id = ran_func_id
         self.byte_array = byte_array
         self.dapp_e3_ind_payload: DAppE3IndPayload = None
+        self.free_ind_payload = wrap_functions(dApp_lib, 'free_dapp_e3_ind_payload', None, [ctypes.POINTER(DAppE3IndPayload)])
         self.decode_e3_ind_payload = wrap_functions(dApp_lib, 'dapp_dec_e3_indication', ctypes.c_bool, [ctypes.c_uint32, ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t, ctypes.POINTER(DAppE3IndPayload)])
 
 
@@ -60,6 +61,6 @@ class DAppE3IndPayloadWrapper():
             prbs.append(prbs_ptr[i])
         return prbs
     
-    # def __del__(self):
-    #     if self.dapp_e2_ind_payload is not None:
-    #         self.free(self.dapp_e2_ind_payload)
+    def __del__(self):
+        if self.dapp_e3_ind_payload is not None:
+            self.free_ind_payload(self.dapp_e3_ind_payload)
