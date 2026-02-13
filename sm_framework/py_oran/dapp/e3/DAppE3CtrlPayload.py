@@ -32,7 +32,8 @@ class DAppE3CtrlPayloadWrapper():
     def set_spectrum_control(self, blocked_prbs: list):
         self.dapp_e3_ctrl_payload.u.spectrum = spectrum_sm_control_t()
         self.dapp_e3_ctrl_payload.u.spectrum.prb_count = len(blocked_prbs)
-
+        if blocked_prbs == 0 :
+            return
         blocked_prbs_array_type = ctypes.c_uint16 * len(blocked_prbs)
         self._blocked_prbs_array = blocked_prbs_array_type()
 

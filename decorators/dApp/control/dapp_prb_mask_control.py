@@ -49,9 +49,6 @@ class DAppPrbMaskControl(xAppControlService):
         self.dapp_id = dapp_id
     
     def set_payload(self, prbs_to_block: list):
-        if(len(prbs_to_block) == 0):
-            self.logger.error("[DAppPrbMaskControl] No PRBs to block, control message will be generated with empty PRB list")
-            return
         self.prb_to_block = prbs_to_block
         payload = DAppE3CtrlPayloadWrapper(dapp_e3_sm_type_e.DAPP_E3_SM_SPECTRUM)
         payload.set_spectrum_control(self.prb_to_block)
