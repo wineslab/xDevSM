@@ -267,6 +267,7 @@ class XappKpmFrame(BaseXDevSMWrapper):
         else:
             for key in self.subscription_id.keys():
                 self.logger.info("[XappKpmFrame] Unsubscribing from gnb: {}, subid: {}, DELETE {}".format(key, self.subscription_id[key], self.uri_subscriptions))
+                # self.subscriber.Unsubscribe(self.subscription_id[key])
         self._xapp_handler.terminate(signum, frame)
 
 
