@@ -40,9 +40,13 @@ class KpmIndHdrWrapper():
 
 
     def decode(self) -> KpmIndHdr:
+        if self.byte_array is None:
+            # print("Header byte array is None skipping decoding")
+            return None
         self.kpm_ind_hdr = self.decode_indication_header(len(self.byte_array), self.byte_array)
         return self.kpm_ind_hdr
     
     def __del__(self):
-        self.free(self.kpm_ind_hdr)
+        if self.kpm_ind_hdr is not None:
+            self.free(self.kpm_ind_hdr)
         

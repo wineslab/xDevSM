@@ -384,7 +384,7 @@ class KpmIndMsg(ctypes.Structure):
 
     _fields_ = [
         ("type", format_ind_msg_e),  # format_ind_msg_e
-        ("data", Union) 
+        ("data", Union)
     ]
 
     def print_gran_period_ms(self):
@@ -408,26 +408,11 @@ class KpmIndMsg(ctypes.Structure):
                     print(f"gran_period_ms is not set for UE {i}.")
         else:
             print("Unknown format type.")
-    
-    def print_meas_info(self, logger: Logger):
-        
-        # print("~~~~~~~~~~ DATA FROM {} ~~~~~~~~~~".format(gnb_inventory_name))
 
+    def print_meas_info(self, logger: Logger):
         if self.type.value == format_ind_msg_e.FORMAT_1_INDICATION_MESSAGE:
             logger.debug("received indication message format 1")
-            for i in range(self.data.frm_1.meas_data_lst_len):
-                logger.debug("printing info regarding ue[{}]".format(i))
-                meas_data_lst = self.data.frm_1.meas_data_lst
-                for k in range(meas_data_lst[i].meas_record_len):
-                    meas_record_lst_el = meas_data_lst[i].meas_record_lst[k]
-                    if self.data.frm_1.meas_info_lst[k].meas_type.type.value == meas_type_enum.NAME_MEAS_TYPE:
-                        self.log_values(logger, self.data.frm_1.meas_info_lst[k].meas_type.value.name, meas_record_lst_el, type=meas_record_lst_el.value.value)
-
-                    elif self.data.frm_1.meas_info_lst[k].meas_type.type.value == meas_type_enum.ID_MEAS_TYPE:
-                        self.log_values_id(logger, self.data.frm_1.meas_info_lst[k].meas_type.value.id, meas_record_lst_el)
-                    
-                    else:
-                        logger.info("Not supported meas type {}".format(self.data.frm_1.meas_info_lst[k].meas_type.type.value))
+            self.print_meas_info_frmt_1(logger=logger, frmt_1=self.data.frm_1)
 
         elif self.type.value == format_ind_msg_e.FORMAT_2_INDICATION_MESSAGE:
             logger.debug("received indication message format 2 - not supported yet")
@@ -435,18 +420,57 @@ class KpmIndMsg(ctypes.Structure):
             logger.debug("received indication message format 3")
             for i in range(self.data.frm_3.ue_meas_report_lst_len):
                 logger.debug("printing info regarding ue[{}]".format(i))
-                ind_msg_format_1 = self.data.frm_3.meas_report_per_ue[i].ind_msg_format_1
+                self.log_ue_id_info(logger, self.data.frm_3.meas_report_per_ue[i].ue_meas_report_lst)
 
-                for j in range(ind_msg_format_1.meas_data_lst_len):
-                    meas_data_lst = ind_msg_format_1.meas_data_lst
-                    # logger.debug("~~~~~~~~~~ MEAS INFO data: {} ~~~~~~~~~~".format(j))
-                    # print(meas_data_lst[j].meas_record_len)
-                    for k in range(meas_data_lst[j].meas_record_len):
-                        meas_record_lst_el = meas_data_lst[j].meas_record_lst[k]
-                        if ind_msg_format_1.meas_info_lst[k].meas_type.type.value == meas_type_enum.NAME_MEAS_TYPE:
-                            self.log_values(logger, ind_msg_format_1.meas_info_lst[k].meas_type.value.name, meas_record_lst_el, type=meas_record_lst_el.value.value)
-                        else:
-                            logger.info("Not supported meas type {}".format(ind_msg_format_1.meas_info_lst[k].meas_type.type.value))
+                ind_msg_format_1 = self.data.frm_3.meas_report_per_ue[i].ind_msg_format_1
+                self.print_meas_info_frmt_1(logger=logger, frmt_1=ind_msg_format_1)
+                # for j in range(ind_msg_format_1.meas_data_lst_len):
+                #     meas_data_lst = ind_msg_format_1.meas_data_lst
+                #     # logger.debug("~~~~~~~~~~ MEAS INFO data: {} ~~~~~~~~~~".format(j))
+                #     # print(meas_data_lst[j].meas_record_len)
+                #     for k in range(meas_data_lst[j].meas_record_len):
+                #         meas_record_lst_el = meas_data_lst[j].meas_record_lst[k]
+                #         if ind_msg_format_1.meas_info_lst[k].meas_type.type.value == meas_type_enum.NAME_MEAS_TYPE:
+                #             self.log_values(logger, ind_msg_format_1.meas_info_lst[k].meas_type.value.name, meas_record_lst_el, type=meas_record_lst_el.value.value)
+                #         else:
+                #             logger.info("Not supported meas type {}".format(ind_msg_format_1.meas_info_lst[k].meas_type.type.value))
+
+    def print_meas_info_frmt_1(self, logger: Logger, frmt_1: kpm_ind_msg_format_1_t):
+        for i in range(frmt_1.meas_data_lst_len):
+            logger.debug("printing info regarding ue[{}]".format(i))
+            meas_data_lst = frmt_1.meas_data_lst
+            for k in range(meas_data_lst[i].meas_record_len):
+                meas_record_lst_el = meas_data_lst[i].meas_record_lst[k]
+                if frmt_1.meas_info_lst[k].meas_type.type.value == meas_type_enum.NAME_MEAS_TYPE:
+                    self.log_values(logger, frmt_1.meas_info_lst[k].meas_type.value.name, meas_record_lst_el, type=meas_record_lst_el.value.value)
+                if frmt_1.meas_info_lst[k].label_info_lst_len > 0:
+                    label_list = frmt_1.meas_info_lst[k].label_info_lst
+                    self.print_labels(logger=logger, label_size=frmt_1.meas_info_lst[k].label_info_lst_len, label_list=label_list)
+
+                elif frmt_1.meas_info_lst[k].meas_type.type.value == meas_type_enum.ID_MEAS_TYPE:
+                    self.log_values_id(logger, frmt_1.meas_info_lst[k].meas_type.value.id, meas_record_lst_el)
+                else:
+                    logger.info("Not supported meas type {}".format(self.data.frm_1.meas_info_lst[k].meas_type.type.value))
+
+    def print_labels(self, logger: Logger, label_size: ctypes.c_size_t, label_list: label_info_lst_t):
+        
+        for i in range(label_size):
+            label_el = label_list[i]
+            if label_el.noLabel:
+                logger.info("noLabel: ".format(label_el.noLabel.contents.value))
+            
+            if label_el.plmn_id:
+                logger.info("plmn_id: ".format(label_el.plmn_id.contents.value))
+            
+            if label_el.sliceID:
+                logger.info("sliceID: ".format(label_el.sliceID.contents.value))
+            
+            if label_el.fiveQI:
+                logger.info("fiveQI: ".format(label_el.fiveQI.contents.value))
+            
+            if label_el.qFI:
+                logger.info("qFI: ".format(label_el.fiveQI.contents.value))
+            
 
     def log_values(self, logger: Logger, meas_type: ByteArray, meas_record: meas_record_lst_t, type=meas_value_e.INTEGER_MEAS_VALUE):
         meas_type_bs = bytes(np.ctypeslib.as_array(meas_type.buf, shape = (meas_type.len,)))
@@ -466,9 +490,64 @@ class KpmIndMsg(ctypes.Structure):
         
         if not printed:
             logger.info("Measurement Id not yet supported")
-    
+
     def log_values_id(self, logger: Logger, byte_array, meas_record: meas_record_lst_t):
         logger.info("received id value - not supported yet: {}".format(byte_array))
+
+    def log_ue_id_info(self, logger: Logger, ue_info: ue_id_e2sm_t):
+        logger.info("ue id info type: {}".format(ue_info.type.value))
+        if ue_info.type.value == ue_id_e2sm_e.GNB_UE_ID_E2SM:
+            logger.info("-- GNB_UE_ID_E2SM")
+            gnb_mono = ue_info.union.gnb
+            logger.info("---- amf_ue_ngap_id: {}".format(gnb_mono.amf_ue_ngap_id))
+            logger.info("---- guami")
+            logger.info("------ amf_region_id: {}".format(gnb_mono.guami.amf_region_id))
+            logger.info("------ amf_set_id: {}".format(gnb_mono.guami.amf_set_id))
+            logger.info("------ amf_ptr: {}".format(gnb_mono.guami.amf_ptr))
+            logger.info("------ plmn_id")
+            logger.info("-------- mcc: {}".format(gnb_mono.guami.plmn_id.mcc))
+            logger.info("-------- mnc: {}".format(gnb_mono.guami.plmn_id.mnc))
+            logger.info("-------- mnc_digit_len: {}".format(gnb_mono.guami.plmn_id.mnc_digit_len))
+            logger.info("----gnb_cu_ue_f1ap_lst_len: {}".format(gnb_mono.gnb_cu_ue_f1ap_lst_len))
+            for i in range(0, gnb_mono.gnb_cu_ue_f1ap_lst_len):
+                logger.info("------gnb_cu_ue_f1ap_lst: {}".format(gnb_mono.gnb_cu_ue_f1ap_lst[i]))
+            
+            logger.info("---- gnb_cu_ue_f1ap_lst_len: {}".format(gnb_mono.gnb_cu_cp_ue_e1ap_lst_len))
+            for i in range(0, gnb_mono.gnb_cu_cp_ue_e1ap_lst_len):
+                logger.info("------ gnb_cu_ue_f1ap_lst: {}".format(gnb_mono.gnb_cu_cp_ue_e1ap_lst[i]))
+            
+            if gnb_mono.ran_ue_id: 
+                logger.info("---- ran_ue_id: {}".format(gnb_mono.ran_ue_id.contents.value))
+            
+            if gnb_mono.ng_ran_node_ue_xnap_id: 
+                logger.info("---- ng_ran_node_ue_xnap_id: {}".format(gnb_mono.ng_ran_node_ue_xnap_id.contents.value))
+            
+            logger.info("---- global_gnb_id")
+            if gnb_mono.global_gnb_id: 
+                logger.info("todo add gnb print")
+                logger.info("------ type: {}".format(gnb_mono.global_gnb_id.contents.type.value))
+                logger.info("------ plmn_id")
+                logger.info("-------- mcc: {}".format(gnb_mono.global_gnb_id.contents.plmn_id.mcc))
+                logger.info("-------- mnc: {}".format(gnb_mono.global_gnb_id.contents.plmn_id.mnc))
+                logger.info("-------- mnc_digit_len: {}".format(gnb_mono.global_gnb_id.contents.plmn_id.mnc_digit_len))
+            
+            if gnb_mono.global_ng_ran_node_id:
+                logger.info("---- global_ng_ran_node_id")
+                logger.info("add logging")
+        elif ue_info.type.value == ue_id_e2sm_e.GNB_DU_UE_ID_E2SM:
+            logger.info("-- GNB_DU_UE_ID_E2SM")
+            gnb_du = ue_info.union.gnb_du
+            logger.info("----gnb_cu_ue_f1ap: {}".format(gnb_du.gnb_cu_ue_f1ap))
+            if gnb_du.ran_ue_id:
+                logger.info("----ran_ue_id: {}".format(gnb_du.ran_ue_id.contents.value))
+        else:
+            logger.debug("no log information for ue info type: {}".format(ue_info.type.value))
+            
+            
+            
+                
+            
+
 
 class KpmIndMsgWrapper():
     # Manager for decoding and memory deallocation
@@ -479,6 +558,8 @@ class KpmIndMsgWrapper():
         self.decode_indication_msg = wrap_functions(kpm_lib, 'kpm_dec_ind_msg_asn', KpmIndMsg, [ctypes.c_size_t, ctypes.POINTER(ctypes.c_uint8)])
 
     def decode(self) -> KpmIndMsg:
+        if self.byte_array is None:
+            return None
         self.kpm_ind_msg = self.decode_indication_msg(len(self.byte_array), self.byte_array)
         return self.kpm_ind_msg
 
