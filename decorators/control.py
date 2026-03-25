@@ -1,4 +1,5 @@
 import numpy as np
+import ctypes
 
 from decorators.base import BaseXDevSMWrapper
 
@@ -6,6 +7,9 @@ from decorators.base import BaseXDevSMWrapper
 from ricxappframe.xapp_frame import rmr
 from ricxappframe.e2ap.asn1 import ControlRequestMsg
 
+import sm_framework.py_oran.kpm.KpmIndicationMsg as kpmmsg
+import sm_framework.py_oran.rc.RCControlReq as ctrlReq
+import sm_framework.py_oran.rc.RCControlHdr as ctrlhdr
 
 # utility
 from utils.constants import Values
@@ -20,7 +24,10 @@ class xAppControlService(BaseXDevSMWrapper):
                 http_port,
                 mrc,
                 pltnamespace,
-                app_namespace):
+                app_namespace,
+                # UE ID parameters usually used in O-RAN Compliant control messages
+                ue_id_type=None, 
+                ue_id=None):
         super().__init__(xapp_handler, logger, server)
         self.xapp_name = xapp_name
         self.rmr_port = rmr_port
@@ -28,6 +35,10 @@ class xAppControlService(BaseXDevSMWrapper):
         self._mrc = mrc
         self.pltnamespace = pltnamespace
         self.app_namespace = app_namespace
+        
+        # Not mandatory - parameters used only for specified controls
+        self.ue_id_type = ue_id_type
+        self.ue_id = ue_id
 
         # Ran function parameters
         self.style = None
@@ -91,11 +102,11 @@ class xAppControlService(BaseXDevSMWrapper):
         func_def_obj = self.function_def_wrapper.decode()
         return func_def_obj
 
-    def generate_control_request(self, control_action_id=1):
+    def generate_control_request(self, ue_id_struct=None, control_action_id=1):
         # defined in the subclasses -> depending on the type of control requested
         pass
 
-    def send(self, e2_node_id, ran_func_dsc, control_action_id=1):
+    def send(self, e2_node_id, ran_func_dsc, ue_id_struct=None, control_action_id=1):
         """
         Sends a Control Request.
 
@@ -104,13 +115,6 @@ class xAppControlService(BaseXDevSMWrapper):
         - ran_func_dsc: Decoded RC function definition
         - control_action_id: ID of the control action to be performed
         """
-        # if ue_id_struct is None:
-        #     if not self.ue_id_type:
-        #         self.logger.info("[RCControlBase] using mock ue_id")
-        #         ue_id_struct = self.get_mock_ue_id(ran_ue_id=self.ue_id)
-        #     else:
-        #         self.logger.info("[RCControlBase] using mock du_ue_id")
-        #         ue_id_struct = self.get_mock_du_ue_id(ran_ue_id=self.ue_id)
 
         if not ran_func_dsc.ctrl:
             # TODO Add error message
@@ -131,7 +135,7 @@ class xAppControlService(BaseXDevSMWrapper):
 
         self.logger.info("{} style supported generating message".format(self.service_style_name))
 
-        self.generate_control_request(control_action_id=control_action_id)
+        self.generate_control_request(ue_id_struct=ue_id_struct, control_action_id=control_action_id)
 
         # self.service_model_wrapper.print_ctrl_req()
 
@@ -210,3 +214,46 @@ class xAppControlService(BaseXDevSMWrapper):
         # TODO
         self.logger.info("[xAppControlService] Deleting RMR rule for control messages")
     
+    ########## Temporary mock functions for UE ID ##########
+    def get_mock_du_ue_id(self, ran_ue_id: ctypes.c_uint32) -> kpmmsg.ue_id_e2sm_t:
+        ue_id = kpmmsg.ue_id_e2sm_t()
+        ue_id.type = kpmmsg.ue_id_e2sm_e.GNB_DU_UE_ID_E2SM
+        
+        gnb_du = kpmmsg.gnb_du_e2sm_t()
+
+        gnb_du.gnb_cu_ue_f1ap = ran_ue_id
+        # gnb_du.ran_ue_id = 0 # We don't have this information in KPM messages in srs
+
+        ue_id.union.gnb_du = gnb_du
+        
+        return ue_id
+    
+    def get_mock_ue_id(self, ran_ue_id: ctypes.c_ulong=1) -> kpmmsg.ue_id_e2sm_t:
+        ue_id = kpmmsg.ue_id_e2sm_t()
+        ue_id.type = ctrlhdr.ue_id_e2sm_e.GNB_UE_ID_E2SM
+        
+        gnb_mono = kpmmsg.gnb_e2sm_t()
+        gnb_mono.amf_ue_ngap_id = 9
+        
+        # guami
+        plmn_id = kpmmsg.e2sm_plmn_t()
+        plmn_id.mcc = 1
+        plmn_id.mnc = 1
+        plmn_id.mnc_digit_len = 2 
+        guami = kpmmsg.guami_t()
+        guami.plmn_id = plmn_id
+        guami.amf_region_id = 1
+        guami.amf_set_id = 1
+        guami.amf_ptr = 1
+        gnb_mono.guami = guami
+
+        gnb_mono.gnb_cu_ue_f1ap_lst_len = 0
+        gnb_mono.gnb_cu_cp_ue_e1ap_lst_len = 0
+        gnb_mono.ran_ue_id = ctypes.pointer(ctypes.c_ulong(ran_ue_id))
+
+        # gnb_pointer = ctypes.pointer(gnb_mono)
+
+        ue_id.union.gnb = gnb_mono
+
+        return ue_id
+    ########## ############################## ##########
