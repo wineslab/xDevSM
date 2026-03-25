@@ -30,3 +30,4 @@ def wrap_functions(library, funcname, restype, argtypes):
 wrapper = ctypes.CDLL('libsm_framework.so')
 kpm_lib = ctypes.CDLL('libkpm_sm.so')
 rc_lib = ctypes.CDLL('librc_1_03.so')
+dApp_lib = ctypes.CDLL('libdapp_sm.so')

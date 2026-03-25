@@ -1,32 +1,38 @@
 # import base decorator
-from decorators.rc.rc_control_base import RCControlBase
+from decorators.control import xAppControlService
+import sm_framework.py_oran.rc.RCFunctionDef as funcdef
+import sm_framework.py_oran.rc.RCControlReq as ctrlReq
 
-class RadioResourceAllocationControl(RCControlBase):
+class RadioResourceAllocationControl(xAppControlService):
     """
     Radio Resource Allocation Control Decorator
     """
 
-    def __init__(self, 
-                 xapp_handler, 
-                 logger, 
-                 server, 
-                 xapp_name, 
+    def __init__(self,
+                 xapp_handler,
+                 logger,
+                 server,
+                 xapp_name,
                  rmr_port,
-                 mrc, 
-                 http_port, 
-                 pltnamespace, 
+                 http_port,
+                 mrc,
+                 pltnamespace,
                  app_namespace,
                  # control parameters
-                 plmn_identity=None, 
-                 sst=None, 
-                 sd=None, 
-                 min_prb_policy_ratio=None, 
-                 max_prb_policy_ratio=None, 
+                 plmn_identity=None,
+                 sst=None,
+                 sd=None,
+                 min_prb_policy_ratio=None,
+                 max_prb_policy_ratio=None,
                  dedicated_prb_policy_ratio=None,
                  ue_id_type=False,
                  ue_id=None):
-        super().__init__(xapp_handler, logger, server, xapp_name, rmr_port, mrc, http_port, pltnamespace, app_namespace, ue_id_type, ue_id)
+        super().__init__(xapp_handler, logger, server, xapp_name, rmr_port, http_port, mrc, pltnamespace, app_namespace, ue_id_type, ue_id)
         self.service_style_name = "Radio Resource Allocation Control"
+        self.function_id = 3
+
+        self.function_def_wrapper = funcdef.RCFuncDefWrapper(hex="")
+        self.service_model_wrapper = ctrlReq.RCControlReqWrapper()
         self.plmn_identity = plmn_identity
         self.sst = sst
         self.sd = sd
@@ -70,11 +76,18 @@ class RadioResourceAllocationControl(RCControlBase):
     def get_dedicated_prb_policy_ratio(self):
         return self.dedicated_prb_policy_ratio
 
-    def generate_control_request(self, ue_id_struct, control_action_id=6):
+    def generate_control_request(self, ue_id_struct=None, control_action_id=6):
+        if ue_id_struct is None:
+            if not self.ue_id_type:
+                self.logger.info("[RadioResourceAllocationControl] using mock ue_id")
+                ue_id_struct = self.get_mock_ue_id(ran_ue_id=self.ue_id)
+            else:
+                self.logger.info("[RadioResourceAllocationControl] using mock du_ue_id")
+                ue_id_struct = self.get_mock_du_ue_id(ran_ue_id=self.ue_id)
 
         if control_action_id == 6: # Slice-level PRB quota
             # TODO Add checks on the parameters
-            self.wrapper.generate_radio_resource_allocation_control_frmt_1(self.style,
+            self.service_model_wrapper.generate_radio_resource_allocation_control_frmt_1(self.style,
                                                                         ue_id=ue_id_struct,
                                                                         plmn_identity=self.plmn_identity,
                                                                         sst=self.sst,
