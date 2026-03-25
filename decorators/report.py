@@ -45,6 +45,7 @@ class xAppReportService(BaseXDevSMWrapper):
         
 
         self.subscription_id = {}
+        self.sm_func_wrapper = None
 
         self.__ext_sub_failed_callback = None
         self.__ind_msg_callback = None
@@ -66,8 +67,34 @@ class xAppReportService(BaseXDevSMWrapper):
             xapp.logger.error("[xAppReportService] Indication header or message byte array is None, skipping processing")
             return
 
-        self.decode_message(indm.function_id, ba_ind_header, ba_ind_msg)
+        self.decode_message(indm.function_id, ba_ind_header, ba_ind_msg, summary['meid'])
     
+    
+    def get_ran_function_description(self, json_ran_info):
+        """
+        Get decoded ran function description
+        Parameters:
+        ----------
+        json_ran_info (json obj): json object obtained when by the get_ran_info function
+
+        """
+        if not json_ran_info:
+            self.logger.info("[xAppReportService] json_ran_info object None value not admitted!")
+            return
+
+        for ran_func in json_ran_info["gnb"]["ranFunctions"]: 
+            if ran_func["ranFunctionId"] == self.function_id:
+                # selecting rc action
+                ran_function_definition = ran_func["ranFunctionDefinition"]
+                break
+        self.logger.info(ran_function_definition)
+        # Decoding RAN function Definition
+        self.sm_func_wrapper.set_hex(hex=ran_function_definition)
+        
+        func_def_obj = self.sm_func_wrapper.decode()
+        
+        return func_def_obj
+
     @abstractmethod
     def decode_message(self, function_id, ba_ind_header, ba_ind_msg):
         pass
@@ -140,7 +167,7 @@ class xAppReportService(BaseXDevSMWrapper):
                 break
         
         if to_remove is None:
-            self.logger.error("subscription id not found")
+            self.logger.error("[XappReportService] subscription id not found")
         else:
             del self.subscription_id[to_remove]
     
@@ -148,7 +175,8 @@ class xAppReportService(BaseXDevSMWrapper):
         response = ricrest.initResponse()
         response['payload'] = ("{}")
         response_json = json.loads(data)
-        self.logger.info(response_json)
+        self.logger.info("[XappReportService] Subscription response received: {}".format(response_json))
+        # self.logger.info(response_json)
         if len(response_json["SubscriptionInstances"][0]["ErrorCause"]) > 0 and response_json["SubscriptionInstances"][0]["ErrorCause"] != " ":
             self.logger.info("Error for subscription: {} removing it from the pool reasons: {}".format(response_json['SubscriptionId'], response_json["SubscriptionInstances"][0]["ErrorCause"]))
             self.remove_sub_id(response_json['SubscriptionId'])
