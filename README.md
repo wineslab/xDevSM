@@ -29,14 +29,15 @@ The architecture separates three main layers:
 BasexDevSMXapp
     └── xDevSMRMRXapp
     └── BaseXDevSMWrapper
-        ├── XappKpmFrame
-        └── RCControlBase
+        ├── xAppReportService
+        │   └── XappKpmFrame
+        └── xAppControlService
                 ├── RadioBearerControl
                 ├── RadioResourceAllocationControl
                 └── ConnectedModeMobilityControl
 ```
 
-> ℹ️ A detailed diagram is available [here](xDevSMClassDiagram.png).
+> ℹ️ A detailed diagram is available [here](xdevsmclassdiagram.pdf).
 
 ---
 
@@ -112,7 +113,26 @@ kpm_api.subscribe(gnb=self.selected_gnb,
 
 
 ---
-## 6. RCControlBase
+## 6. xAppReportService
+
+**Purpose:**
+Provides the base class for **Report-type** Service Models. Handles subscription management, indication message routing, and decoding.
+
+**Common Responsibilities:**
+
+* Build and send E2 subscription requests.
+* Route incoming indication messages to registered callbacks.
+* Interface with `sm_framework` for decoding RAN function descriptions.
+
+**Specializations:**
+
+| Subclass        | Description                                         |
+| --------------- | --------------------------------------------------- |
+| `XappKpmFrame`  | Implements KPM-specific subscription and indication handling. |
+
+---
+
+## 7. xAppControlService
 
 **Purpose:**
 Provides the base class for the **Radio Control (RC)** Service Model. Defines shared functionality across different RC control operations.
@@ -122,21 +142,21 @@ Provides the base class for the **Radio Control (RC)** Service Model. Defines sh
 * Initialize and validate RC messages.
 * Interface with `sm_framework` for encoding and decoding.
 * Offer helper methods for constructing Control Requests.
+* Handle RIC Control Acknowledge and Failure messages.
 
 **Specializations:**
 
-| Subclass - Style                   | Description                                               | Control Action Id Support                                |
-| ---------------------------------- | --------------------------------------------------------- |--------------------------------------------------------- |
-| `RadioBearerControl` - 1           | Handles bearer-level control (QoS, bearer setup/release). | (2) QoS flow mapping configuration                       |
-| `RadioResourceAllocationControl`- 2| Manages resource allocation (e.g., PRB or scheduling).    | (6) Slice-level PRB quota                                |
-| `ConnectedModeMobilityControl` - 3 | Manages handover and mobility-related control procedures. | (1) Handover control                                   |
+| Subclass - Style                    | Description                                               | Control Action Id Support              |
+| ----------------------------------- | --------------------------------------------------------- | -------------------------------------- |
+| `RadioBearerControl` - 1            | Handles bearer-level control (QoS, bearer setup/release). | (2) QoS flow mapping configuration     |
+| `RadioResourceAllocationControl` - 2| Manages resource allocation (e.g., PRB or scheduling).    | (6) Slice-level PRB quota              |
+| `ConnectedModeMobilityControl` - 3  | Manages handover and mobility-related control procedures. | (1) Handover control                   |
 
 Each subclass defines Service Model–specific operations and message structures, invoking the appropriate encoder/decoder from `sm_framework.rc`.
 
 > ℹ️ Control parameters can be modified using getter and setter methods.
 
 **Example: Radio Bearer Control Initialization**
-
 
 ```python
 xapp_gen = xDevSMRMRXapp("0.0.0.0", route_file=args.route_file)
@@ -146,8 +166,8 @@ rc_xapp = RadioBearerControl(xapp_gen,
                                 server=xapp_gen.server,
                                 xapp_name=xapp_gen.get_xapp_name(),
                                 rmr_port=xapp_gen.rmr_port,
-                                mrc=xapp_gen._mrc,
                                 http_port=xapp_gen.http_port,
+                                mrc=xapp_gen._mrc,
                                 pltnamespace=xapp_gen.get_pltnamespace(),
                                 app_namespace=xapp_gen.get_app_namespace(),
                                 # control parameters
@@ -165,8 +185,8 @@ rc_xapp = RadioResourceAllocationControl(xapp_gen,
                                         server=xapp_gen.server,
                                         xapp_name=xapp_gen.get_xapp_name(),
                                         rmr_port=xapp_gen.rmr_port,
-                                        mrc=xapp_gen._mrc,
                                         http_port=xapp_gen.http_port,
+                                        mrc=xapp_gen._mrc,
                                         pltnamespace=xapp_gen.get_pltnamespace(),
                                         app_namespace=xapp_gen.get_app_namespace(),
                                         # control parameters
@@ -177,7 +197,6 @@ rc_xapp = RadioResourceAllocationControl(xapp_gen,
                                         max_prb_policy_ratio=70,
                                         dedicated_prb_policy_ratio=5
                                         )
-
 ```
 
 **Example: Connected Mode Mobility Control**
@@ -188,8 +207,8 @@ rc_xapp = ConnectedModeMobilityControl(xapp_gen,
                                         server=xapp_gen.server,
                                         xapp_name=xapp_gen.get_xapp_name(),
                                         rmr_port=xapp_gen.rmr_port,
-                                        mrc=xapp_gen._mrc,
                                         http_port=xapp_gen.http_port,
+                                        mrc=xapp_gen._mrc,
                                         pltnamespace=xapp_gen.get_pltnamespace(),
                                         app_namespace=xapp_gen.get_app_namespace(),
                                         # control parameters
@@ -201,7 +220,7 @@ rc_xapp = ConnectedModeMobilityControl(xapp_gen,
 
 ---
 
-## 7. Service Model Encoder/Decoder
+## 8. Service Model Encoder/Decoder
 
 The `sm_framework` provides the internal logic for encoding and decoding messages according to the KPM and RC Service Models. The external APIs (`XappKpmFrame`, `RCControlBase`, etc.) rely on these internal classes to translate between Python objects and binary payloads.
 
@@ -213,7 +232,7 @@ Developers using `xDevSM` do not directly call `sm_framework`; it is fully manag
 
 ---
 
-## 8. Example xApps
+## 9. Example xApps
 
 For end-to-end examples of KPM and RC xApps built on top of this API, see:
 
@@ -227,7 +246,7 @@ This repository contains working implementations that demonstrate:
 
 ---
 
-## 9. Extending the API
+## 10. Extending the API
 
 To support a new Service Model (E2SM):
 
@@ -238,7 +257,7 @@ To support a new Service Model (E2SM):
 
 ---
 
-## 10. Other Sources
+## 11. Other Sources
 
 A detailed step-by-step tutorial for setting up a deployment to begin working with xDevSM is available [here](https://openrangym.com/tutorials/xdevsm-tutorial).
 
