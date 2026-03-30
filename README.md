@@ -37,7 +37,7 @@ BasexDevSMXapp
                 └── ConnectedModeMobilityControl
 ```
 
-> ℹ️ A detailed diagram is available [here](xDevSMClassDiagram.png).
+> ℹ️ A detailed diagram is available [here](xdevsmclassdiagram.pdf).
 
 ---
 
