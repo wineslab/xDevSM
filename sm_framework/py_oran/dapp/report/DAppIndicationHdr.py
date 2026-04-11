@@ -4,16 +4,32 @@ from sm_framework.py_oran.dapp.enums import *
 from sm_framework.py_oran.ByteArray import ByteArray
 from sm_framework.lib.library_wrapper import dApp_lib, wrap_functions
 
-class e2sm_dapp_ind_hdr_frmt_0_t(ctypes.Structure):
+class e2sm_dapp_ind_hdr_frmt_1_t(ctypes.Structure):
     _fields_ = [
         ("ran_function_id", ctypes.c_uint32),
         ("dapp_id", ctypes.c_uint32),
+        ("node_type", ctypes.c_uint8),
+        ("node_plmn_id", ctypes.c_uint8 * 3),  # uint8_t[3]
+        ("node_nb_id", ctypes.c_uint32),
+        ("node_cu_du_id_present", ctypes.c_bool),
+        ("node_cu_du_id", ctypes.c_uint64),
+    ]
+
+
+class e2sm_dapp_ind_hdr_frmt_2_t(ctypes.Structure):
+    _fields_ = [
+        ("node_type", ctypes.c_uint8),
+        ("node_plmn_id", ctypes.c_uint8 * 3),  # uint8_t[3]
+        ("node_nb_id", ctypes.c_uint32),
+        ("node_cu_du_id_present", ctypes.c_bool),
+        ("node_cu_du_id", ctypes.c_uint64),
     ]
 
 class DAppIndHdr(ctypes.Structure):
     class Union(ctypes.Union):
         _fields_ = [
-            ("frmt_0", e2sm_dapp_ind_hdr_frmt_0_t),
+            ("frmt_1", e2sm_dapp_ind_hdr_frmt_1_t),
+            ("frmt_2", e2sm_dapp_ind_hdr_frmt_2_t),
         ]
 
     _fields_ = [

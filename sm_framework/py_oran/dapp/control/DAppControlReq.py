@@ -33,15 +33,15 @@ class DAppControlReqWrapper():
         dapp_ctrl_req_enc.msg_encoded = self.encode_control_message(self.dapp_ctrl_req.msg)
         return dapp_ctrl_req_enc
     
-    def generate_control_req_frmt_0(self, ran_function_id: int, dapp_id: int, payload: ByteArray):
+    def generate_control_req_frmt_1(self, ran_function_id: int, dapp_id: int, payload: ByteArray):
         self._payload_ref = payload
         self.dapp_ctrl_req.hdr = hdr.DAppControlHdr()
-        self.dapp_ctrl_req.hdr.format = hdr.e2sm_dapp_ctrl_hdr_e.FORMAT_0_E2SM_DAPP_CTRL_HDR
-        self.dapp_ctrl_req.hdr.union.frmt_0 = hdr.e2sm_dapp_ctrl_hdr_frmt_0_t()
-        self.dapp_ctrl_req.hdr.union.frmt_0.ran_function_id = ran_function_id
-        self.dapp_ctrl_req.hdr.union.frmt_0.dapp_id = dapp_id
+        self.dapp_ctrl_req.hdr.format = hdr.e2sm_dapp_ctrl_hdr_e.FORMAT_1_E2SM_DAPP_CTRL_HDR
+        self.dapp_ctrl_req.hdr.union.frmt_1 = hdr.e2sm_dapp_ctrl_hdr_frmt_1_t()
+        self.dapp_ctrl_req.hdr.union.frmt_1.ran_function_id = ran_function_id
+        self.dapp_ctrl_req.hdr.union.frmt_1.dapp_id = dapp_id
         self.dapp_ctrl_req.msg = ctrl.DAppControlMsg()
-        self.dapp_ctrl_req.msg.format = ctrl.e2sm_dapp_ctrl_msg_e.FORMAT_0_E2SM_DAPP_CTRL_MSG
-        self.dapp_ctrl_req.msg.union.frmt_0 = ctrl.e2sm_dapp_ctrl_msg_frmt_0_t()
-        self.dapp_ctrl_req.msg.union.frmt_0.data_size = self._payload_ref.len
-        self.dapp_ctrl_req.msg.union.frmt_0.data = self._payload_ref.buf
+        self.dapp_ctrl_req.msg.format = ctrl.e2sm_dapp_ctrl_msg_e.FORMAT_1_E2SM_DAPP_CTRL_MSG
+        self.dapp_ctrl_req.msg.union.frmt_1 = ctrl.e2sm_dapp_ctrl_msg_frmt_1_t()
+        self.dapp_ctrl_req.msg.union.frmt_1.data_size = self._payload_ref.len
+        self.dapp_ctrl_req.msg.union.frmt_1.data = self._payload_ref.buf

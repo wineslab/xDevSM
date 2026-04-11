@@ -4,7 +4,7 @@ from sm_framework.py_oran.dapp.enums import *
 from sm_framework.py_oran.ByteArray import ByteArray
 from sm_framework.lib.library_wrapper import dApp_lib, wrap_functions
 
-class e2sm_dapp_ctrl_out_frmt_0_t(ctypes.Structure):
+class e2sm_dapp_ctrl_out_frmt_1_t(ctypes.Structure):
     _fields_ = []
 
 
@@ -12,7 +12,7 @@ class DAppControlOut(ctypes.Structure):
 
     class Union(ctypes.Union):
         _fields_ = [
-            ("frmt_0", e2sm_dapp_ctrl_out_frmt_0_t),
+            ("frmt_1", e2sm_dapp_ctrl_out_frmt_1_t),
         ]
 
     _fields_ = [

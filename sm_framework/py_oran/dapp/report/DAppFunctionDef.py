@@ -5,6 +5,20 @@ from sm_framework.py_oran.ByteArray import ByteArray
 from sm_framework.lib.library_wrapper import dApp_lib, wrap_functions
 
 
+class dapp_e3_subscription_item_t(ctypes.Structure):
+    _fields_ = [
+        ("dapp_id", ctypes.c_uint32),
+        ("sz_subscribed_e3_ran_functions", ctypes.c_size_t),
+        ("subscribed_e3_ran_functions", ctypes.POINTER(ctypes.c_uint32)),
+    ]
+
+
+class dapp_e3_subscription_list_t(ctypes.Structure):
+    _fields_ = [
+        ("sz_dapp_e3_subscriptions", ctypes.c_size_t),
+        ("dapp_e3_subscriptions", ctypes.POINTER(dapp_e3_subscription_item_t)),
+    ]
+
 class seq_ev_trg_style_dapp_sm_t(ctypes.Structure):
     _fields_ = [
         ("style", ctypes.c_uint32),
@@ -18,14 +32,14 @@ class ran_func_def_ev_trig_dapp_sm_t(ctypes.Structure):
         ("seq_ev_trg_style", ctypes.POINTER(seq_ev_trg_style_dapp_sm_t)),
     ]
 
+
 class seq_report_sty_dapp_sm_t(ctypes.Structure):
     _fields_ = [
         ("report_type", ctypes.c_uint32),
-        ("name", ByteArray),             # byte_array_t
-        ("ev_trig_type", ctypes.c_uint32),
-        ("act_frmt_type", ctypes.c_uint32),
+        ("name", ByteArray),
         ("ind_hdr_type", ctypes.c_uint32),
         ("ind_msg_type", ctypes.c_uint32),
+        ("dapp_e3_subs", ctypes.POINTER(dapp_e3_subscription_list_t)),
     ]
 
 class ran_func_def_report_dapp_sm_t(ctypes.Structure):
@@ -37,10 +51,11 @@ class ran_func_def_report_dapp_sm_t(ctypes.Structure):
 class seq_ctrl_style_dapp_sm_t(ctypes.Structure):
     _fields_ = [
         ("style_type", ctypes.c_uint32),
-        ("name", ByteArray),          # byte_array_t
+        ("name", ByteArray),
         ("hdr", ctypes.c_uint32),
         ("msg", ctypes.c_uint32),
         ("out_frmt", ctypes.c_uint32),
+        ("dapp_e3_subs", ctypes.POINTER(dapp_e3_subscription_list_t)),
     ]
 
 class ran_func_def_ctrl_dapp_sm_t(ctypes.Structure):

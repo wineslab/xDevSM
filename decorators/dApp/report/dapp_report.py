@@ -81,20 +81,21 @@ class DAppReport(xAppReportService):
         dapp_ind_msg = dapp_ind_msg_wrapper.decode()
         self.logger.info("[DAppReport] Decoded DApp Indication Message: decoded")
 
-        if dapp_ind_msg.format.value != DAppIndicationMsg.e2sm_dapp_ind_msg_format_e.FORMAT_0_E2SM_DAPP_IND_MSG:
+        if dapp_ind_msg.format.value != DAppIndicationMsg.e2sm_dapp_ind_msg_format_e.FORMAT_1_E2SM_DAPP_IND_MSG and dapp_ind_msg.format.value != DAppIndicationMsg.e2sm_dapp_ind_msg_format_e.FORMAT_2_E2SM_DAPP_IND_MSG:
             self.logger.error("[DAppReport] DApp Indication Message format not supported")
             return
-        
-        # Decoding DApp E3 Indication Payload based on format 0
-        prb_blocked = dapp_ind_msg_wrapper.get_data_format_0()
-        dapp_e3_ind_payload_wrapper = DAppE3IndPayload.DAppE3IndPayloadWrapper(ran_func_id=dapp_ind_hdr.union.frmt_0.ran_function_id, byte_array=prb_blocked)
-        dapp_e3_ind_payload_wrapper.decode()
-        self.logger.info("[DAppReport] Decoded DApp E3 Indication Payload: decoded")
+
+
+        # Decoding DApp E3 Indication Payload based on format 1 <- this now should be done outside
+        # prb_blocked = dapp_ind_msg_wrapper.get_data_format_1()
+        # dapp_e3_ind_payload_wrapper = DAppE3IndPayload.DAppE3IndPayloadWrapper(ran_func_id=dapp_ind_hdr.union.frmt_0.ran_function_id, byte_array=prb_blocked)
+        # dapp_e3_ind_payload_wrapper.decode()
+        # self.logger.info("[DAppReport] Decoded DApp E3 Indication Payload: decoded")
         
        
         ind_msg_callback = self.get_indication_msg_callback()
         if ind_msg_callback is not None:
-            ind_msg_callback(dapp_ind_hdr, dapp_e3_ind_payload_wrapper)
+            ind_msg_callback(dapp_ind_hdr, dapp_ind_msg, meid)
         else:
             self.logger.warning("[DAppReport] No indication message callback registered, skipping processing")
 

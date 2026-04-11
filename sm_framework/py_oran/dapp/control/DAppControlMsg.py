@@ -5,7 +5,7 @@ from sm_framework.py_oran.ByteArray import ByteArray
 from sm_framework.lib.library_wrapper import dApp_lib, wrap_functions
 
 
-class e2sm_dapp_ctrl_msg_frmt_0_t(ctypes.Structure):
+class e2sm_dapp_ctrl_msg_frmt_1_t(ctypes.Structure):
     _fields_ = [
         ("data_size", ctypes.c_uint32),
         ("data", ctypes.POINTER(ctypes.c_uint8)),
@@ -16,7 +16,7 @@ class DAppControlMsg(ctypes.Structure):
 
     class Union(ctypes.Union):
         _fields_ = [
-            ("frmt_0", e2sm_dapp_ctrl_msg_frmt_0_t),
+            ("frmt_1", e2sm_dapp_ctrl_msg_frmt_1_t),
         ]
 
     _fields_ = [

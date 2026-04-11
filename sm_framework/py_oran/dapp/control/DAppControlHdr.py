@@ -6,7 +6,7 @@ from sm_framework.lib.library_wrapper import dApp_lib, wrap_functions
 
 
 
-class e2sm_dapp_ctrl_hdr_frmt_0_t(ctypes.Structure):
+class e2sm_dapp_ctrl_hdr_frmt_1_t(ctypes.Structure):
     _fields_ = [
         ("ran_function_id", ctypes.c_uint32),
         ("dapp_id", ctypes.c_uint32),
@@ -16,7 +16,7 @@ class DAppControlHdr(ctypes.Structure):
 
     class Union(ctypes.Union):
         _fields_ = [
-            ("frmt_0", e2sm_dapp_ctrl_hdr_frmt_0_t),
+            ("frmt_1", e2sm_dapp_ctrl_hdr_frmt_1_t),
         ]
 
     _fields_ = [
