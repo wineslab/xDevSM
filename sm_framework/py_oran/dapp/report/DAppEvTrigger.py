@@ -22,7 +22,7 @@ class DAppEvTrigger(ctypes.Structure):
 class DAppEvTriggerWrapper():
     def __init__(self):
         self.dapp_ev_trigger: DAppEvTrigger = DAppEvTrigger()
-        self.encode_event_trigger = wrap_functions(dApp_lib, 'dapp_enc_action_def_asn', ByteArray, [ctypes.POINTER(DAppEvTrigger)])
+        self.encode_event_trigger = wrap_functions(dApp_lib, 'dapp_enc_event_trigger_asn', ByteArray, [ctypes.POINTER(DAppEvTrigger)])
 
     def encode(self) -> ByteArray:
         if self.dapp_ev_trigger is None:
