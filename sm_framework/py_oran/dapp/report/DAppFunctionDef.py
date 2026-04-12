@@ -97,7 +97,18 @@ class DAppFunctionDef(ctypes.Structure):
                 report_type = function_def.report_type
                 print("\tReport Type: {}".format(report_type))
                 print("\tName: {}".format(function_def_decoded))
-        
+                if function_def.dapp_e3_subs:
+                    dapp_e3_subs = function_def.dapp_e3_subs.contents
+                    for idx in range(0, dapp_e3_subs.sz_dapp_e3_subscriptions):
+                        sub = dapp_e3_subs.dapp_e3_subscriptions[idx]
+                        ran_func_ids = []
+                        for func_idx in range(0, sub.sz_subscribed_e3_ran_functions):
+                            func_id = sub.subscribed_e3_ran_functions[func_idx]
+                            ran_func_ids.append(func_id)
+                        print("\t\tDApp ID: {}, Subscribed RAN Function IDs: {}".format(sub.dapp_id, ran_func_ids))
+                else:
+                    print("\t\tNo DApp E3 Subscriptions")
+
         if self.ctrl:
             print("[Control]")
             ctrl_obj = self.ctrl.contents
@@ -108,6 +119,18 @@ class DAppFunctionDef(ctypes.Structure):
                 style_type = function_def.style_type
                 print("\tStyle Type: {}".format(style_type))
                 print("\tName: {}".format(function_def_decoded))
+
+                if function_def.dapp_e3_subs:
+                    dapp_e3_subs = function_def.dapp_e3_subs.contents
+                    for idx in range(0, dapp_e3_subs.sz_dapp_e3_subscriptions):
+                        sub = dapp_e3_subs.dapp_e3_subscriptions[idx]
+                        ran_func_ids = []
+                        for func_idx in range(0, sub.sz_subscribed_e3_ran_functions):
+                            func_id = sub.subscribed_e3_ran_functions[func_idx]
+                            ran_func_ids.append(func_id)
+                        print("\t\tDApp ID: {}, Subscribed RAN Function IDs: {}".format(sub.dapp_id, ran_func_ids))
+                else:
+                    print("\t\tNo DApp E3 Subscriptions")
                     
 
 

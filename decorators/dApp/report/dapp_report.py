@@ -100,7 +100,7 @@ class DAppReport(xAppReportService):
             self.logger.warning("[DAppReport] No indication message callback registered, skipping processing")
 
     
-    def subscribe(self, gnb, ev_trigger: DAppEvTrigger.DAppEvTrigger=None, action_def: DAppActionDef.DAppActionDef=None):
+    def subscribe(self, gnb, ev_trigger: DAppEvTrigger.DAppEvTrigger=None, action_def: int=None):
         """
         This method sends a subscription request to the RIC for the given gnb
         Parameters:
@@ -112,7 +112,7 @@ class DAppReport(xAppReportService):
         action_def: DAppFunctionDef object
             The action definition
         """
-        
+        action_def = DAppActionDef.DAppActionDefWrapper()
         if ev_trigger is None:
             self.logger.info("[DAppReport] Event trigger is None build a default one")
             ev_trigger = DAppEvTrigger.DAppEvTriggerWrapper()
@@ -120,8 +120,10 @@ class DAppReport(xAppReportService):
         
         if action_def is None:
             self.logger.info("[DAppReport] Action definition is None build a default one")
-            action_def = DAppActionDef.DAppActionDefWrapper()
             action_def.create_dummy_action_def()
+        else:
+            action_def = DAppActionDef.DAppActionDefWrapper()
+            action_def.create_action_def_from_report_style(action_def)
 
         # encoding event trigger
         ev_trigger_enc = ev_trigger.encode()

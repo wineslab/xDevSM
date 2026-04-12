@@ -39,3 +39,8 @@ class DAppActionDefWrapper():
         self.dapp_function_def.ric_style_type = 1
         self.dapp_function_def.format = e2sm_dapp_action_def_format_e.FORMAT_1_E2SM_DAPP_ACTION_DEF
         # No fields to fill in frmt_1 for now
+    
+    def create_action_def_from_report_style(self, report_style: int):
+        self.dapp_function_def.ric_style_type = report_style
+        self.dapp_function_def.format = e2sm_dapp_action_def_format_e.FORMAT_1_E2SM_DAPP_ACTION_DEF
+        # No fields to fill in frmt_1 for now
