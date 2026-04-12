@@ -17,8 +17,8 @@ class DAppActionDef(ctypes.Structure):
         ]
 
     _fields_ = [
-        ("ric_style_type", ctypes.c_uint32),
         ("format", e2sm_dapp_action_def_format_e),
+        ("ric_style_type", ctypes.c_uint32),
         ("union", Union),
     ]
 
@@ -43,4 +43,6 @@ class DAppActionDefWrapper():
     def create_action_def_from_report_style(self, report_style: int):
         self.dapp_function_def.ric_style_type = report_style
         self.dapp_function_def.format = e2sm_dapp_action_def_format_e.FORMAT_1_E2SM_DAPP_ACTION_DEF
+        self.dapp_function_def.union.frmt_1 = e2sm_dapp_act_def_frmt_1_t()
+        print(self.dapp_function_def.format.value)
         # No fields to fill in frmt_1 for now

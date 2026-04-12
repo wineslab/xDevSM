@@ -70,12 +70,17 @@ class DAppReport(xAppReportService):
         dapp_ind_hdr = dapp_ind_hdr_wrapper.decode()
 
 
-        if dapp_ind_hdr is None or dapp_ind_hdr.format.value != DAppIndicationHdr.e2sm_dapp_ind_hdr_format_e.FORMAT_0_E2SM_DAPP_IND_HDR:
+        if dapp_ind_hdr is None:
             self.logger.error("[DAppReport] Decoded DApp Indication Header is None, skipping processing")
             return
 
-        self.logger.info("[DAppReport] Decoded DApp Indication Header: ran_function_id={}, dapp_id={}".format(dapp_ind_hdr.union.frmt_0.ran_function_id,dapp_ind_hdr.union.frmt_0.dapp_id))
 
+        if dapp_ind_hdr.format.value != DAppIndicationHdr.e2sm_dapp_ind_hdr_format_e.FORMAT_1_E2SM_DAPP_IND_HDR:
+            self.logger.info("[DAppReport] Decoded DApp Indication Header format 1: ran_function_id={}, dapp_id={}".format(dapp_ind_hdr.union.frmt_1.ran_function_id,dapp_ind_hdr.union.frmt_1.dapp_id))
+        elif dapp_ind_hdr.format.value == DAppIndicationHdr.e2sm_dapp_ind_hdr_format_e.FORMAT_2_E2SM_DAPP_IND_HDR:
+            self.logger.info("[DAppReport] Decoded DApp Indication Header format 2")
+
+        
         # Decoding DApp Indication Message
         dapp_ind_msg_wrapper = DAppIndicationMsg.DAppIndicationMsgWrapper(byte_array=ba_ind_msg)
         dapp_ind_msg = dapp_ind_msg_wrapper.decode()
