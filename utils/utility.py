@@ -54,16 +54,28 @@ def extract_config_fields(config_file_path) -> tuple:
         raise json.JSONDecodeError(f"Invalid JSON format in config file: {config_file_path}")
     
 
-def write_routing_table(app_name: str, app_namespace: str, rmr_port: int, route_path: str) -> bool:
+def write_routing_table(
+    app_name: str,
+    app_namespace: str,
+    rmr_port: int,
+    route_path: str,
+    plt_namespace: str = None,
+    a1mediator_rmr_port: int = 4562,
+) -> bool:
     """
     Writes a routing table to the specified file.
-    
+
     Args:
         app_name (str): name of xApp
         app_namespace (str): namespace of xApp
         rmr_port (int): port for RIC message routing
-        route_file_path (str): path of route file to write to
-    
+        route_path (str): path of route file to write to
+        plt_namespace (str, optional): platform namespace; if provided, a route
+            for A1_POLICY_RESP (mtype 20011) is added pointing to the a1mediator
+            RMR service so xApps can ack policies even when the incoming message
+            source-id is not RMR-resolvable (`rmr_rts` fallback).
+        a1mediator_rmr_port (int): a1mediator RMR port (default 4562).
+
     Returns:
         bool: True if the file was written successfully, False otherwise
     """
@@ -78,10 +90,13 @@ def write_routing_table(app_name: str, app_namespace: str, rmr_port: int, route_
     for m in message_type_list:
         route = f"rte|{m}|service-{app_namespace}-{app_name}-rmr.{app_namespace}:{xapp_port}\n"
         routing_table += route
+    if plt_namespace:
+        a1_endpoint = f"service-{plt_namespace}-a1mediator-rmr.{plt_namespace}:{a1mediator_rmr_port}"
+        routing_table += f"rte|20011|{a1_endpoint}\n"
     routing_table += routing_table_end
 
     print(routing_table)
-    
+
     try:
         with open(route_path, 'w') as f:
             f.write(routing_table)

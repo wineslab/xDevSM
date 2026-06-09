@@ -63,7 +63,13 @@ class xDevSMRMRXapp(RMRXapp, BasexDevSMXapp):
         if route_file is None:
             route_file = "./config/uta_rtg.rt"
     
-        write_routing_table(self.xapp_name, self.app_namespace, self.rmr_port, route_file)
+        write_routing_table(
+            self.xapp_name,
+            self.app_namespace,
+            self.rmr_port,
+            route_file,
+            plt_namespace=self.pltnamespace,
+        )
 
 
         # HTTP Server: create the thread HTTP server and set the uri handler callbacks
