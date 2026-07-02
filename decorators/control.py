@@ -176,15 +176,15 @@ class xAppControlService(BaseXDevSMWrapper):
     
     def _handle_control_ack_suc(self, xapp, summary, sbuf):
         self.logger.info("[xAppControlService] Handling control ack - default implementation")
-        # TODO add ack decoding - not supported so far
+        # Summary is used to correlate the ack with the gNB. 
+        # TODO The full PDU is not decoded yet.
         if self.__control_ack_handler_suc:
-            self.__control_ack_handler_suc() # TODO define parameter with ack info decoded
+            self.__control_ack_handler_suc(summary)
 
     def _handle_control_ack_fail(self, xapp, summary, sbuf):
         self.logger.info("[xAppControlService] Handling control failure ack - default implementation")
-        # TODO add failure ack decoding - not supported so far
         if self.__control_ack_handler_fail:
-            self.__control_ack_handler_fail() # TODO define parameter with ack info decoded
+            self.__control_ack_handler_fail(summary)
     
 
     def register_control_ack_suc_callback(self, handler):
