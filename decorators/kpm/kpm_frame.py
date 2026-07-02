@@ -55,8 +55,8 @@ class XappKpmFrame(xAppReportService):
 
 
     
-    def decode_message(self, function_id, ba_ind_header, ba_ind_msg, meid):
-        
+    def decode_message(self, function_id, ba_ind_header, ba_ind_msg, meid, sub_id):
+
         # Indication hdr - decoding E2SM
         self.logger.info("[XappKpmFrame] E2AP Decoded function id: {}".format(function_id))
         if function_id != self.function_id:
@@ -83,12 +83,14 @@ class XappKpmFrame(xAppReportService):
             ))
             decoded_ind_msg.print_meas_info(self.logger)
         else:
-            ind_msg_callback(decoded_ind_hdr, decoded_ind_msg, meid)
+            ind_msg_callback(decoded_ind_hdr, decoded_ind_msg, meid, sub_id)
     
 
     def subscribe(self, gnb, ev_trigger: Tuple[int, float], func_def: dict, action_type=Values.ACTION_TYPE, ran_period_ms=1000, sst=1, sd=0):
         """
         This method sends a subscription request to the RIC for the given gnb
+        returns sub_id 
+        the sub_id is what callers need to correlate later indications with this specific subscription.
         """
 
         self.logger.info("[XappKpmFrame] Preparing subscription for gnb: {}".format(gnb.inventory_name))
@@ -118,9 +120,15 @@ class XappKpmFrame(xAppReportService):
         
         if len(actions) == 0:
             self.logger.info("[XappKpmFrame] No action built!")
-            return
-        
-        self.send_subscription(gnb, encoded_ev_trig, actions)
+            return None
+
+        result = self.send_subscription(gnb, encoded_ev_trig, actions)
+        if result is None:
+            return None
+        # send_subscription returns (status, sub_id); the sub_id is what callers
+        # need to correlate later indications with this specific subscription.
+        _, sub_id = result
+        return sub_id
     
     def get_ue_id(self, ue_meas_report: KpmIndicationMsg.ue_id_e2sm_t) -> int:
         if ue_meas_report.type.value == ue_id_e2sm_e.GNB_UE_ID_E2SM:
@@ -166,14 +174,3 @@ class XappKpmFrame(xAppReportService):
         """
         return self.subscription_id[inventory_name]
 
-    def _remove_sub_id(self, sub_id: str):
-        to_remove = None
-        for key in self.subscription_id.keys():
-            if self.subscription_id[key] == sub_id:
-                to_remove = key
-                break
-        
-        if to_remove is None:
-            self.logger.error("subscription id not found")
-        else:
-            del self.subscription_id[to_remove]
