@@ -82,7 +82,7 @@ Provides a composition interface that connects Service Model–specific APIs (KP
 * `xapp_handler` — instance of `BasexDevSMXapp`.
 
 **Usage:**
-This class is not used directly but extended by SM-specific wrappers like `XappKpmFrame` and `RCControlBase` providing the actual APIs.
+This class is not used directly but extended by RIC service bases (`xAppReportService`, `xAppControlService`) and then by Service Model–specific decorators (e.g. `XappKpmFrame`, `RadioResourceAllocationControl`) that expose the actual APIs.
 
 ---
 
@@ -222,7 +222,7 @@ rc_xapp = ConnectedModeMobilityControl(xapp_gen,
 
 ## 8. Service Model Encoder/Decoder
 
-The `sm_framework` provides the internal logic for encoding and decoding messages according to the KPM and RC Service Models. The external APIs (`XappKpmFrame`, `RCControlBase`, etc.) rely on these internal classes to translate between Python objects and binary payloads.
+The `sm_framework` provides the internal logic for encoding and decoding messages according to the KPM and RC Service Models. The xDevSM decorators are organized by RIC service direction: `xAppReportService` and `xAppControlService` are the generic bases for report- and control-style services, and any service model (KPM, RC, ...) plugs in by extending the appropriate base — for example `XappKpmFrame` extends `xAppReportService`, and `RadioResourceAllocationControl` extends `xAppControlService`.
 
 ```
 [ xApp code ] → [ xDevSM API ] → [ sm_framework (encode/decode) ] → [ E2AP + RMR ]

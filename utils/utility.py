@@ -89,3 +89,10 @@ def write_routing_table(app_name: str, app_namespace: str, rmr_port: int, route_
     except Exception as e:
         print(f"Error writing to file: {e}")
         return False
+
+
+def decode_meid(summary):
+    raw = summary.get('meid')
+    if raw is None:
+        return None
+    return raw.decode('utf-8') if isinstance(raw, (bytes, bytearray)) else raw
