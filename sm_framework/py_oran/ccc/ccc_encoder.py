@@ -1,8 +1,3 @@
-"""
-Pure-Python JSON encoders for the E2SM-CCC IEs that ride inside the
-E2AP OCTET STRINGs. The dApp builds Python dicts that mirror the JSON
-Schema in O-RAN.WG3.TS.E2SM-CCC §9.4.2 and ships them to the SM as bytes.
-"""
 import ctypes
 import json
 from typing import List, Optional

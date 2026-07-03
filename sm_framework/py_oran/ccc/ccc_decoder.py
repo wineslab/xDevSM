@@ -1,11 +1,3 @@
-"""
-Pure-Python JSON decoders for the E2SM-CCC IEs received from the RIC.
-
-The FlexRIC ccc_sm plugin forwards the on-wire JSON bytes verbatim into
-the indication header / message OCTET STRINGs, so on the dApp side we
-just need `json.loads`. Two thin wrappers expose the decoded dicts and
-a few helpers to drill into Indication Message Format 2 (cell-level).
-"""
 import json
 from typing import Iterator, List, Optional
 

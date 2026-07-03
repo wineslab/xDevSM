@@ -1,11 +1,3 @@
-"""
-E2SM-CCC constants (O-RAN.WG3.TS.E2SM-CCC-R004-v06.00).
-
-Function ID is assigned at runtime by the RIC when registering the RAN
-function, but we keep the FlexRIC plugin-side SM identifier here for the
-dApp to filter inbound indications.
-"""
-
 # Must match flexric/src/sm/ccc_sm/ccc_sm_id.h:SM_CCC_ID.
 SM_CCC_ID = 149
 

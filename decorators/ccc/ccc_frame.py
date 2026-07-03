@@ -1,14 +1,3 @@
-"""
-E2SM-CCC REPORT decorator for the xDevSM-dApp framework.
-
-Implements the periodic REPORT Style 2 (cell-level) flow:
-  - subscribe(): builds Event Trigger Definition Format 3 + Action
-    Definition Format 2 as JSON and ships them via the OSC subscription
-    manager.
-  - decode_message(): parses the JSON indication header/message bytes
-    received from the FlexRIC ccc_sm plugin and dispatches them to the
-    user-registered callback.
-"""
 from typing import List, Optional, Tuple
 
 from ricxappframe.xapp_frame import rmr
@@ -74,7 +63,7 @@ class XappCccFrame(xAppReportService):
             )
         self._xapp_handler.handle(xapp, summary, sbuf)
 
-    def decode_message(self, function_id, ba_ind_header, ba_ind_msg, meid):
+    def decode_message(self, function_id, ba_ind_header, ba_ind_msg, meid, sub_id):
         self.logger.info("[XappCccFrame] E2AP function id: {}".format(function_id))
         if function_id != self.function_id:
             self.logger.info(
@@ -101,7 +90,7 @@ class XappCccFrame(xAppReportService):
         if cb is None:
             self._log_default(hdr, msg)
         else:
-            cb(hdr, msg, meid)
+            cb(hdr, msg, meid, sub_id)
 
     def _log_default(self, hdr: CccIndicationHeader, msg: CccIndicationMessage) -> None:
         for cell, struct in msg.iter_structures():
@@ -134,7 +123,7 @@ class XappCccFrame(xAppReportService):
     def subscribe(
         self,
         gnb,
-        period_ms: int = 1000,
+        ran_period_ms: int = 1000,
         ran_cfg_structure_name: str = STRUCT_O_NRCELLDU,
         attributes: Optional[List[str]] = None,
         report_type: str = REPORT_TYPE_ALL,
@@ -146,20 +135,21 @@ class XappCccFrame(xAppReportService):
         Defaults to REPORT Style 2 (cell-level) on O-NRCellDU with the
         three attributes targeted by this implementation iteration:
         arfcnDL, bSChannelBwDL, bWPList.
+      
         """
         if attributes is None:
             attributes = ["arfcnDL", "bSChannelBwDL", "bWPList"]
 
         self.logger.info(
-            "[XappCccFrame] preparing subscription for gnb={} period_ms={} attrs={}".format(
-                getattr(gnb, "inventory_name", "?"), period_ms, attributes
+            "[XappCccFrame] preparing subscription for gnb={} ran_period_ms={} attrs={}".format(
+                getattr(gnb, "inventory_name", "?"), ran_period_ms, attributes
             )
         )
 
         if self.subscriber.ResponseHandler(self.subs_response_cb, self.server) is not True:
             self.logger.error("Error when trying to set the subscription response callback")
 
-        ev_trig = encode_event_trigger_periodic(period_ms)
+        ev_trig = encode_event_trigger_periodic(ran_period_ms)
         act_def = encode_action_definition_cell_level(
             ran_cfg_structure_name=ran_cfg_structure_name,
             attribute_names=attributes,
@@ -177,17 +167,17 @@ class XappCccFrame(xAppReportService):
             ),
         )
 
-        return self.send_subscription(gnb, ev_trig, [action])
-
+        _, sub_id = self.send_subscription(gnb, ev_trig, [action])
+        return sub_id
     # ------------------------------------------------------------------
     # Convenience: ad-hoc subscription helper
     # ------------------------------------------------------------------
 
-    def subscribe_arfcn_bw_bwps(self, gnb, period_ms: int = 1000):
+    def subscribe_arfcn_bw_bwps(self, gnb, ran_period_ms: int = 1000):
         """One-call helper for the three target metrics of this iteration."""
         return self.subscribe(
             gnb=gnb,
-            period_ms=period_ms,
+            ran_period_ms=ran_period_ms,
             ran_cfg_structure_name=STRUCT_O_NRCELLDU,
             attributes=["arfcnDL", "bSChannelBwDL", "bWPList"],
         )
@@ -197,8 +187,8 @@ class XappCccFrame(xAppReportService):
         if not self.subscription_id:
             self.logger.info("[XappCccFrame] not subscribed - terminating")
         else:
-            for key, sid in self.subscription_id.items():
-                self.logger.info(
-                    "[XappCccFrame] unsubscribing gnb={} subid={}".format(key, sid)
-                )
+             for key, sub_ids in self.subscription_id.items():
+                for sub_id in sub_ids:
+                    self.logger.info("[XappCccFrame] Unsubscribing from gnb: {}, subid: {}, DELETE {}".format(key, sub_id, self.uri_subscriptions))
+                    self.subscriber.Unsubscribe(sub_id)
         self._xapp_handler.terminate(signum, frame)
