@@ -153,12 +153,13 @@ class XappKpmFrame(xAppReportService):
 
     def terminate(self, signum, frame):
         self.logger.info("[XappKpmFrame] Received termination signal")
-        if self.subscription_id is None:
+        if not self.subscription_id:
             self.logger.info("[XappKpmFrame] Not subscribed - terminating...")
         else:
-            for key in self.subscription_id.keys():
-                self.logger.info("[XappKpmFrame] Unsubscribing from gnb: {}, subid: {}, DELETE {}".format(key, self.subscription_id[key], self.uri_subscriptions))
-                # self.subscriber.Unsubscribe(self.subscription_id[key])
+            for key, sub_ids in self.subscription_id.items():
+                for sub_id in sub_ids:
+                    self.logger.info("[XappKpmFrame] Unsubscribing from gnb: {}, subid: {}, DELETE {}".format(key, sub_id, self.uri_subscriptions))
+                    self.subscriber.Unsubscribe(sub_id)
         self._xapp_handler.terminate(signum, frame)
 
 
