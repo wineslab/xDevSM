@@ -1,5 +1,5 @@
 import ctypes
-from ctypes import POINTER, Structure, Union, c_uint32
+from ctypes import POINTER, Structure, Union, c_uint64
 from sm_framework.py_oran.ByteArray import ByteArray
 from sm_framework.lib.library_wrapper import kpm_lib, wrap_functions
 
@@ -11,7 +11,7 @@ class FormatIndHdrE(ctypes.c_uint):
 
 class KpmRicIndHdrFormat1(Structure):
     _fields_ = [
-        ("collectStartTime", c_uint32),
+        ("collectStartTime", c_uint64),
         ("fileformat_version", POINTER(ByteArray)),
         ("sender_name", POINTER(ByteArray)),
         ("sender_type", POINTER(ByteArray)),
