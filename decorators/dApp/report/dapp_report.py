@@ -56,7 +56,7 @@ class DAppReport(xAppReportService):
         self._xapp_handler.handle(xapp, summary, sbuf)
     
     
-    def decode_message(self, function_id, ba_ind_header, ba_ind_msg, meid):
+    def decode_message(self, function_id, ba_ind_header, ba_ind_msg, meid, sub_id):
         """
         decode DApp Report indication message
         """
