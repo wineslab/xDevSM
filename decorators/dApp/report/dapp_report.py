@@ -144,7 +144,11 @@ class DAppReport(xAppReportService):
                                                     subsequent_action=self.subscriber.SubsequentAction(subsequent_action_type="continue", time_to_wait="w5ms"))
 
         # sending subscription
-        self.send_subscription(gnb, ev_trigger_enc, [action])
+        # send_subscription returns (status, sub_id); propagate the sub_id so
+        # callers can correlate later indications / unsubscribe, matching the
+        # KPM and CCC frames.
+        _, sub_id = self.send_subscription(gnb, ev_trigger_enc, [action])
+        return sub_id
 
     
 
