@@ -164,6 +164,15 @@ class xDevSMRMRXapp(RMRXapp, BasexDevSMXapp):
         """
         return self.xapp_name
 
+    def get_controls(self):
+        """
+        Returns:
+        ----------
+        the `controls` section of the xApp descriptor (loaded from CONFIG_FILE),
+        or an empty dict if absent.
+        """
+        return (self._config_data or {}).get("controls") or {}
+
     def get_selected_e2node_info(self, e2node_inventory_name=None):
         """
         Returns:
