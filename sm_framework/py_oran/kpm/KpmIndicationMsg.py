@@ -436,21 +436,40 @@ class KpmIndMsg(ctypes.Structure):
                 #             logger.info("Not supported meas type {}".format(ind_msg_format_1.meas_info_lst[k].meas_type.type.value))
 
     def print_meas_info_frmt_1(self, logger: Logger, frmt_1: kpm_ind_msg_format_1_t):
+        # In E2SM-KPM the number of measurement RECORDS (meas_record_len) equals the
+        # total number of (meas_type x label) combinations and is generally LARGER than
+        # meas_info_lst_len. Records are grouped per meas_info entry (meas_info[0]'s
+        # labels first, then meas_info[1]'s, ...). Map each record index k to its owning
+        # meas_info entry via the cumulative label_info_lst_len; indexing meas_info_lst[k]
+        # directly walks off the end of the array -> out-of-bounds ctypes deref -> SEGFAULT.
+        n_info = frmt_1.meas_info_lst_len
         for i in range(frmt_1.meas_data_lst_len):
             logger.debug("printing info regarding ue[{}]".format(i))
             meas_data_lst = frmt_1.meas_data_lst
+            info_idx = 0
+            labels_seen = 0
             for k in range(meas_data_lst[i].meas_record_len):
+                while info_idx < n_info:
+                    span = frmt_1.meas_info_lst[info_idx].label_info_lst_len
+                    if span <= 0:
+                        span = 1
+                    if k < labels_seen + span:
+                        break
+                    labels_seen += span
+                    info_idx += 1
+                if info_idx >= n_info:
+                    break
+                meas_info_el = frmt_1.meas_info_lst[info_idx]
                 meas_record_lst_el = meas_data_lst[i].meas_record_lst[k]
-                if frmt_1.meas_info_lst[k].meas_type.type.value == meas_type_enum.NAME_MEAS_TYPE:
-                    self.log_values(logger, frmt_1.meas_info_lst[k].meas_type.value.name, meas_record_lst_el, type=meas_record_lst_el.value.value)
-                if frmt_1.meas_info_lst[k].label_info_lst_len > 0:
-                    label_list = frmt_1.meas_info_lst[k].label_info_lst
-                    self.print_labels(logger=logger, label_size=frmt_1.meas_info_lst[k].label_info_lst_len, label_list=label_list)
-
-                elif frmt_1.meas_info_lst[k].meas_type.type.value == meas_type_enum.ID_MEAS_TYPE:
-                    self.log_values_id(logger, frmt_1.meas_info_lst[k].meas_type.value.id, meas_record_lst_el)
+                if meas_info_el.meas_type.type.value == meas_type_enum.NAME_MEAS_TYPE:
+                    self.log_values(logger, meas_info_el.meas_type.value.name, meas_record_lst_el, type=meas_record_lst_el.value.value)
+                    if meas_info_el.label_info_lst_len > 0:
+                        label_list = meas_info_el.label_info_lst
+                        self.print_labels(logger=logger, label_size=meas_info_el.label_info_lst_len, label_list=label_list)
+                elif meas_info_el.meas_type.type.value == meas_type_enum.ID_MEAS_TYPE:
+                    self.log_values_id(logger, meas_info_el.meas_type.value.id, meas_record_lst_el)
                 else:
-                    logger.info("Not supported meas type {}".format(self.data.frm_1.meas_info_lst[k].meas_type.type.value))
+                    logger.info("Not supported meas type {}".format(meas_info_el.meas_type.type.value))
 
     def print_labels(self, logger: Logger, label_size: ctypes.c_size_t, label_list: label_info_lst_t):
         
