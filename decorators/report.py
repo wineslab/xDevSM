@@ -164,8 +164,31 @@ class xAppReportService(BaseXDevSMWrapper):
         self._xapp_handler.send(*args, **kwargs)
     
     def terminate(self, signum, frame):
+        # xDevSM manages subscription teardown centrally: every report-based
+        # decorator (KPM / dApp / CCC) deletes the subscriptions it created at
+        # submgr before delegating termination down the chain. Termination is the
+        # single end-of-program hook, so each service model is unsubscribed
+        # exactly once, in chain order.
+        self.unsubscribe_all()
         self._xapp_handler.terminate(signum, frame)
-    
+
+    def unsubscribe_all(self):
+        """Delete every subscription this decorator currently holds at submgr."""
+        tag = type(self).__name__
+        if not self.subscription_id:
+            self.logger.info("[{}] no active subscriptions to remove on termination".format(tag))
+            return
+        for inventory_name, sub_ids in self.subscription_id.items():
+            for sub_id in list(sub_ids):
+                self.logger.info(
+                    "[{}] unsubscribing gnb={} subid={} (DELETE {})".format(
+                        tag, inventory_name, sub_id, self.uri_subscriptions))
+                try:
+                    self.subscriber.Unsubscribe(sub_id)
+                except Exception as e:
+                    self.logger.error("[{}] failed to unsubscribe {}: {}".format(tag, sub_id, e))
+        self.subscription_id.clear()
+
     def get_subscription_id(self, inventory_name: str):
         """
         Parameters:

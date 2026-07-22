@@ -131,7 +131,7 @@ class NewSubscriber():
         """
         response = self.api.request(method="DELETE", url=self.uri + "/" + subs_id, headers=None)
         return response.data, response.reason, response.status
-    
+
     def ResponseHandler(self, responseCB=None, server=None):
         """
         ResponseHandler

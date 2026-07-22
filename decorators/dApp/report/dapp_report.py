@@ -150,10 +150,8 @@ class DAppReport(xAppReportService):
         _, sub_id = self.send_subscription(gnb, ev_trigger_enc, [action])
         return sub_id
 
-    
-
-    
-
     def terminate(self, signum, frame):
-        self.logger.info("[DAppReport] Terminating xApp")
-        self._xapp_handler.terminate(signum, frame)
+        # Per-service-model teardown hook. The base xAppReportService already
+        # unsubscribes this frame's subscriptions and delegates termination down
+        # the chain; override here if the dApp report ever needs extra cleanup.
+        super().terminate(signum, frame)

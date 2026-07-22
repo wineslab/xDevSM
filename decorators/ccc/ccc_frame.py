@@ -183,12 +183,8 @@ class XappCccFrame(xAppReportService):
         )
 
     def terminate(self, signum, frame):
-        self.logger.info("[XappCccFrame] received termination signal")
-        if not self.subscription_id:
-            self.logger.info("[XappCccFrame] not subscribed - terminating")
-        else:
-             for key, sub_ids in self.subscription_id.items():
-                for sub_id in sub_ids:
-                    self.logger.info("[XappCccFrame] Unsubscribing from gnb: {}, subid: {}, DELETE {}".format(key, sub_id, self.uri_subscriptions))
-                    self.subscriber.Unsubscribe(sub_id)
-        self._xapp_handler.terminate(signum, frame)
+        # Per-service-model teardown hook. The base xAppReportService already
+        # unsubscribes this frame's subscriptions and delegates termination down
+        # the chain; override here if CCC ever needs extra cleanup.
+        super().terminate(signum, frame)
+
