@@ -13,6 +13,7 @@ import ricxappframe.xapp_rest as ricrest
 # utility
 from utils.constants import Values
 from utils.utility import write_routing_table
+from utils.lat_profile import lat_log, lat_clock_offset
 
 # xDevSM imports
 from handlers.I_xDevSM_xapp import BasexDevSMXapp
@@ -24,6 +25,10 @@ class xDevSMRMRXapp(RMRXapp, BasexDevSMXapp):
         super().__init__(default_handler=self._dispatch_event, rmr_port=self.rmr_port, post_init=self._post_init, rmr_wait_for_ready=True)
         
         self.logger.set_level(Level.DEBUG)
+
+        # Run-start [LAT] marker (no-op unless E3_LATENCY is set): maps this
+        # process's CLOCK_MONOTONIC to CLOCK_REALTIME for cross-node alignment.
+        lat_clock_offset(self.logger)
 
         self.xapp_name = xapp_name if xapp_name else self._config_data.get("name")
         self.address = address
@@ -116,6 +121,8 @@ class xDevSMRMRXapp(RMRXapp, BasexDevSMXapp):
         self.shutdown = shutdown
 
     def _dispatch_event(self, xapp, summary, sbuf):
+        # Stage: a message (indication/ack) arrived off RMR at the xApp.
+        lat_log(xapp.logger, "xapp_rmr_rx")
         xapp.logger.info("[xDevSMRMRXapp] dispatching event")
         if self._handler is not None:
             self._handler(xapp, summary, sbuf)

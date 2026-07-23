@@ -13,6 +13,7 @@ import sm_framework.py_oran.rc.RCControlHdr as ctrlhdr
 
 # utility
 from utils.constants import Values
+from utils.lat_profile import lat_log
 
 class xAppControlService(BaseXDevSMWrapper):
     def __init__(self,
@@ -146,6 +147,9 @@ class xAppControlService(BaseXDevSMWrapper):
 
         self.logger.info("[xAppControlService] hdr encoded: {}".format(hdr_byte_array))
         self.logger.info("[xAppControlService] ctrl encoded: {}".format(ctrl_msg_byte_array))
+        # Stage: xApp control ASN.1-encoded, about to be framed for RMR.
+        lat_log(self.logger, "xapp_ctrl_encode",
+                hdr=len(hdr_byte_array), msg=len(ctrl_msg_byte_array))
         self.send_control_request_rmr(e2_node_id=e2_node_id,
                                         control_header=hdr_byte_array,
                                         control_message=ctrl_msg_byte_array)
@@ -171,6 +175,8 @@ class xAppControlService(BaseXDevSMWrapper):
         sbuf.contents.sub_id = -1
         self.logger.info("[xAppControlService] E2 node id: {}".format(e2_node_id.encode("utf8")))
         rmr.rmr_set_meid(sbuf, e2_node_id.encode("utf8"))
+        # Stage: control request leaving the xApp over RMR toward the RIC.
+        lat_log(self.logger, "xapp_ctrl_send", bytes=size)
         sbuf = rmr.rmr_send_msg(self._mrc, sbuf)
         self.logger.info("[xAppControlService] Message Sent")
     

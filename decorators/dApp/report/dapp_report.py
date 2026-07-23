@@ -9,6 +9,7 @@ import ricxappframe.xapp_rest as ricrest
 import utils.xapp_sub as subscribe
 from utils.constants import Values
 import utils.utility as utility
+from utils.lat_profile import lat_log
 
 
 # xDevSM decorators
@@ -85,6 +86,8 @@ class DAppReport(xAppReportService):
         dapp_ind_msg_wrapper = DAppIndicationMsg.DAppIndicationMsgWrapper(byte_array=ba_ind_msg)
         dapp_ind_msg = dapp_ind_msg_wrapper.decode()
         self.logger.info("[DAppReport] Decoded DApp Indication Message: decoded")
+        # Stage: E2SM-DAPP indication (dApp report) decoded at the xApp.
+        lat_log(self.logger, "xapp_ind_decode", rf=function_id)
 
         if dapp_ind_msg.format.value != DAppIndicationMsg.e2sm_dapp_ind_msg_format_e.FORMAT_1_E2SM_DAPP_IND_MSG and dapp_ind_msg.format.value != DAppIndicationMsg.e2sm_dapp_ind_msg_format_e.FORMAT_2_E2SM_DAPP_IND_MSG:
             self.logger.error("[DAppReport] DApp Indication Message format not supported")
@@ -100,6 +103,8 @@ class DAppReport(xAppReportService):
        
         ind_msg_callback = self.get_indication_msg_callback()
         if ind_msg_callback is not None:
+            # Stage: handing the decoded report to the xApp's user callback.
+            lat_log(self.logger, "xapp_ind_cb")
             ind_msg_callback(dapp_ind_hdr, dapp_ind_msg, meid)
         else:
             self.logger.warning("[DAppReport] No indication message callback registered, skipping processing")
