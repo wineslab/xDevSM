@@ -1,6 +1,8 @@
 import os
 import signal
 import json
+import time
+import socket
 import requests
 
 from mdclogpy import Level
@@ -21,7 +23,9 @@ from handlers.I_xDevSM_xapp import BasexDevSMXapp
 class xDevSMRMRXapp(RMRXapp, BasexDevSMXapp):
     def __init__(self, address, xapp_name=None, entrypoint=None, route_file=None):
         self.rmr_port = 4560
-        self._handler = None        
+        self._handler = None
+        # Process-start reference for wait_until_ready_for_subscriptions().
+        self._t0 = time.time()
         super().__init__(default_handler=self._dispatch_event, rmr_port=self.rmr_port, post_init=self._post_init, rmr_wait_for_ready=True)
         
         self.logger.set_level(Level.DEBUG)
@@ -179,6 +183,66 @@ class xDevSMRMRXapp(RMRXapp, BasexDevSMXapp):
         or an empty dict if absent.
         """
         return (self._config_data or {}).get("controls") or {}
+
+    def _in_service_endpoints(self):
+        """Best-effort: is this pod's IP a READY address of its own RMR Service?
+        Returns True/False, or None if it can't tell (no in-cluster k8s API access).
+        rtmgr/E2Term can only open the per-subscription RIC_INDICATION wormhole once
+        this pod is a ready endpoint of service-<ns>-<name>-rmr."""
+        tok = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+        ca = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+        if not os.path.exists(tok):
+            return None
+        try:
+            ns = self.get_app_namespace()
+            svc = "service-{}-{}-rmr".format(ns, self.get_xapp_name())
+            pod_ip = os.environ.get("POD_IP") or socket.gethostbyname(socket.gethostname())
+            token = open(tok).read().strip()
+            url = "https://kubernetes.default.svc/api/v1/namespaces/{}/endpoints/{}".format(ns, svc)
+            r = requests.get(url, headers={"Authorization": "Bearer " + token}, verify=ca, timeout=5)
+            if r.status_code != 200:
+                return None
+            for subset in (r.json().get("subsets") or []):
+                for addr in (subset.get("addresses") or []):   # 'addresses' == ready
+                    if addr.get("ip") == pod_ip:
+                        return True
+            return False
+        except Exception as e:
+            self.logger.info("[xDevSMRMRXapp] endpoints check unavailable: {}".format(e))
+            return None
+
+    def wait_until_ready_for_subscriptions(self):
+        """Block until this pod is a READY endpoint of its own RMR Service, so it's
+        safe to subscribe. Prod auto-runs at container boot and would otherwise
+        subscribe before its readiness probe passes -- the pod isn't in the RMR
+        Service endpoints yet, so rtmgr can't open the per-subscription
+        RIC_INDICATION wormhole ('invalid Wormhole ID') and E2Term drops indications
+        (RMR_ERR_NOENDPT). Confirms via the k8s API when reachable, else waits out
+        the readiness window. A descriptor with no readinessProbe (dev) returns
+        almost immediately."""
+        probe = (self._config_data or {}).get("readinessProbe") or {}
+        if not probe:
+            time.sleep(5)   # dev: no probe -> Ready immediately; small settle delay
+            return
+        initial = int(probe.get("initialDelaySeconds", 0))
+        period = int(probe.get("periodSeconds", 0))
+        # The pod is added to the Service endpoints only after the first passing
+        # readiness probe (>= initialDelaySeconds). Bound the wait to that window
+        # plus a margin; exit early if the k8s API confirms we're in the endpoints.
+        deadline = self._t0 + initial + period + 10
+        while time.time() < deadline:
+            state = self._in_service_endpoints()
+            if state is True:
+                self.logger.info("[xDevSMRMRXapp] pod is in the RMR Service endpoints; subscribing")
+                return
+            if state is None:
+                break   # no API access -> fall through to the time-based wait
+            time.sleep(3)
+        remaining = deadline - time.time()
+        if remaining > 0:
+            self.logger.info(
+                "[xDevSMRMRXapp] waiting {:.0f}s for the readiness window so the pod is in the RMR Service endpoints before subscribing".format(remaining))
+            time.sleep(remaining)
 
     def get_selected_e2node_info(self, e2node_inventory_name=None):
         """
