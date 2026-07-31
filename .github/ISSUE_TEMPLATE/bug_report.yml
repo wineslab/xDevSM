@@ -1,0 +1,138 @@
+name: Bug report
+description: Report a defect in xdevsm. Use this when something does not behave as documented.
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please fill in every required field — bug reports without reproduction info or environment details cannot be triaged and will be closed.
+
+        Before submitting, please confirm you have searched the existing issues on the public mirror (`wineslab/xDevSM`) and, if you have access, on the internal repository for duplicates.
+
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Prerequisites
+      options:
+        - label: I have searched existing issues and confirmed this is not a duplicate.
+          required: true
+        - label: I have verified the bug against the latest commit on `main`.
+          required: true
+        - label: I have read `CONTRIBUTING.md`.
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear and concise description of the bug.
+      placeholder: When I run X, I expected Y but got Z.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Numbered list of exact steps. Include the full command lines you ran.
+      value: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include error messages exactly as they appeared.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: service_model
+    attributes:
+      label: Service Model involved
+      description: Which E2SM does the bug relate to?
+      options:
+        - KPM (Key Performance Measurement)
+        - RC (RAN Control)
+        - CCC (Cell Configuration and Control)
+        - dApp (E2SM-DAPP bridge)
+        - Framework / handlers (SM-agnostic)
+        - Other / not applicable
+    validations:
+      required: true
+
+  - type: input
+    id: xdevsm_version
+    attributes:
+      label: xdevsm version
+      description: Output of `pip show xdevsm | grep Version` or contents of the `VERSION` file at the commit you tested.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: ric_version
+    attributes:
+      label: OSC near-RT RIC release
+      description: xDevSM operates only with the O-RAN SC Near-RT RIC. Which release did you test against?
+      placeholder: "Release J"
+    validations:
+      required: true
+
+  - type: input
+    id: python_version
+    attributes:
+      label: Python version
+      description: Output of `python3 --version`. The project requires >= 3.11.
+      placeholder: "3.11.9"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install_method
+    attributes:
+      label: Install method
+      options:
+        - "PyPI: pip install xdevsm"
+        - "Editable: pip install -e \".[dev]\""
+        - "Tarball: pip install dist/xdevsm-*.tar.gz"
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: "Ubuntu 22.04 / 24.04, kernel x.y.z (linux-x86_64 required for the bundled encoders)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and stack traces
+      description: Paste full xApp stderr / Python traceback. Use a code fence. Truncate only obviously irrelevant lines.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional context
+      description: RIC-side logs, RMR route tables, E2 node info, or hypotheses about the root cause.
+    validations:
+      required: false

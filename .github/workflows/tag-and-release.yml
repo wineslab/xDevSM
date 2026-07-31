@@ -1,0 +1,150 @@
+name: Tag and Publish xDevSM package
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  create-tag:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+      tag_created: ${{ steps.set_output.outputs.tag_created }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # Ensure we fetch all tags
+
+      - name: Read VERSION file
+        id: get_version
+        run: |
+          version=$(cat VERSION | tr -d '[:space:]')
+          echo "version=$version" >> $GITHUB_OUTPUT
+
+      - name: Check if tag exists
+        id: check_tag
+        run: |
+          if git rev-parse "refs/tags/${{ steps.get_version.outputs.version }}" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create and push tag
+        if: steps.check_tag.outputs.exists == 'false'
+        id: create_push_tag
+        run: |
+          git tag ${{ steps.get_version.outputs.version }}
+          git push origin ${{ steps.get_version.outputs.version }}
+
+      - name: Set tag_created output
+        id: set_output
+        run: |
+          if [ "${{ steps.check_tag.outputs.exists }}" = "false" ]; then
+            echo "tag_created=true" >> $GITHUB_OUTPUT
+          else
+            echo "tag_created=false" >> $GITHUB_OUTPUT
+          fi
+
+  build:
+    name: Build distribution 📦
+    runs-on: ubuntu-latest
+    needs: create-tag
+    if: ${{ needs.create-tag.outputs.tag_created == 'true' && github.repository == 'wineslab/xDevSM' }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install pypa/build
+        run: python3 -m pip install build --user
+      - name: Build a source tarball (sdist)
+        # sdist only: xDevSM ships prebuilt linux-x86_64 `.so` encoders as package
+        # data, so a wheel would be a non-manylinux `linux_x86_64` artifact that PyPI
+        # rejects. `pip install xdevsm` builds the sdist on the user's machine (pure
+        # Python — hatchling just copies the bundled `.so`), so no toolchain is needed.
+        run: python3 -m build --sdist
+      - name: Store the distribution packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+
+  publish-to-pypi:
+    name: Publish to PyPI
+    needs:
+      - build
+      - create-tag
+    runs-on: ubuntu-latest
+    if: ${{ needs.create-tag.outputs.tag_created == 'true' && github.repository == 'wineslab/xDevSM' }}
+    environment:
+      name: pypi
+      url: https://pypi.org/p/xdevsm
+    permissions:
+      id-token: write
+    steps:
+      - name: Download all the dists
+        uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+      - name: Publish distribution 📦 to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  github-release:
+    name: Sign packages with Sigstore and upload them to GitHub Release
+    needs:
+      - publish-to-pypi
+      - create-tag
+    runs-on: ubuntu-latest
+    if: ${{ needs.create-tag.outputs.tag_created == 'true' && github.repository == 'wineslab/xDevSM' }}
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Download all the dists
+        uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+      - name: Sign the dists with Sigstore
+        uses: sigstore/gh-action-sigstore-python@v3.0.0
+        with:
+          inputs: |
+            ./dist/*.tar.gz
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: gh release create ${{ needs.create-tag.outputs.version }} --repo ${{ github.repository }} --notes ""
+      - name: Upload artifact signatures to GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: gh release upload ${{ needs.create-tag.outputs.version }} dist/** --repo ${{ github.repository }}
+
+  publish-to-testpypi:
+    name: Publish to TestPyPI
+    needs:
+      - publish-to-pypi
+      - create-tag
+    runs-on: ubuntu-latest
+    if: ${{ needs.create-tag.outputs.tag_created == 'true' && github.repository == 'wineslab/xDevSM' }}
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/xdevsm
+    permissions:
+      id-token: write
+    steps:
+      - name: Download all the dists
+        uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+      - name: Publish distribution 📦 to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Request access to the internal development repository
+    url: https://github.com/wineslab/xDevSM/issues/new?labels=access-request&template=question.yml
+    about: External contributors must work in the private internal repository. Open an "access request" issue here, or email aferaudo34@gmail.com as a fallback.
+  - name: Report a security vulnerability
+    url: https://github.com/wineslab/xDevSM/security/policy
+    about: Do NOT open a public issue for vulnerabilities. See SECURITY.md for the private disclosure channel.

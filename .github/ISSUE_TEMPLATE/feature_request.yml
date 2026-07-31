@@ -1,0 +1,52 @@
+name: Feature request
+description: Propose an enhancement to xdevsm (new capability, API improvement, ergonomics).
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for enhancements to existing functionality. To propose a brand-new E2 Service Model wrapper, use the **New Service Model (SM) request** template instead.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What are you trying to do that xdevsm makes hard or impossible today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the API/behavior you would like. Sketch the developer-facing usage if you can.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you evaluated and why you discarded them.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: api_impact
+    attributes:
+      label: Public API impact
+      options:
+        - "None (internal only)"
+        - "Additive (new API, backward compatible)"
+        - "Breaking (changes existing API)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: consumers
+    attributes:
+      label: Consumer impact
+      description: Does this affect the example/xApp repositories (`xDevSM-xapps-examples`, `spectranet-xapps`)? Describe. Write "None" if not.
+    validations:
+      required: true
