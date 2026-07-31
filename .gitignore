@@ -1,7 +1,11 @@
 .venv
 .vscode
+.idea
 __pycache__
+*.py[cod]
 
-*_old*
-
-test*
+# Packaging / build artifacts
+build/
+dist/
+*.egg-info/
+.pytest_cache/
