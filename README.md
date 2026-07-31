@@ -1,5 +1,8 @@
 # xDevSM
 
+[![PyPI](https://img.shields.io/pypi/v/xdevsm.svg)](https://pypi.org/project/xdevsm/)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+
 ## Overview
 
 The xDevSM API framework provides xApp developers with a SDK exposing simple APIs to streamline the procedures defined by different E2SM protocols, facilitating interactions between the xApp, the near-RT RIC, and the E2 termination on the RAN.
@@ -21,6 +24,46 @@ The architecture separates three main layers:
 | **KPM (Key Performance Measurement)** | Measurement Actions | • Common Condition-based Measurement, UE-level Measurement |
 | **RC (RAN Control)** | Control Actions | • QoS Flow Mapping Configuration<br>• Slice-level PRB Quota Action (only monolithic gNBs)<br>• Connected Mode Mobility Control |
 | **CCC (Cell Configuration and Control)** | Report Actions | • Cell-level RAN Configuration Reporting (REPORT Style 2, periodic event trigger) — e.g. `O-NRCellDU` attributes |
+---
+
+## Installation
+
+xDevSM is distributed as the [`xdevsm`](https://pypi.org/project/xdevsm/) package on PyPI:
+
+```bash
+pip install xdevsm
+```
+
+> ℹ️ The package bundles the prebuilt `sm_framework` encoders (`.so`) as package data and is
+> published as a source distribution, so a **linux-x86_64** environment and **Python ≥ 3.11**
+> are required (matching the O-RAN SC Near-RT RIC deployment target). No
+> compiler or `LD_LIBRARY_PATH` setup is needed — the native encoders are loaded relative to the
+> installed package.
+
+For local development (tests, editable install):
+
+```bash
+git clone https://github.com/wineslab/xDevSM.git
+cd xDevSM
+pip install -e ".[dev]"
+pytest tests/ -v
+```
+
+### Importing
+
+Everything lives under the top-level `xdevsm` package. The developer-facing classes are also
+re-exported from the package root for convenience:
+
+```python
+# Convenience (recommended)
+from xdevsm import xDevSMRMRXapp, XappKpmFrame, XappCccFrame, RadioBearerControl
+
+# Or import from the fully-qualified submodules
+from xdevsm.handlers.xDevSM_rmr_xapp import xDevSMRMRXapp
+from xdevsm.decorators.kpm.kpm_frame import XappKpmFrame
+from xdevsm.decorators.ccc.ccc_frame import XappCccFrame
+```
+
 ---
 
 ## Class Hierarchy
