@@ -1,0 +1,30 @@
+# Author
+
+- Angelo Feraudo <aferaudo34@gmail.com>
+  - Initial xDevSM framework design and implementation
+  - xApp API layer (`BasexDevSMXapp`, `xDevSMRMRXapp`) and RMR communication layer
+  - Report/Control decorator architecture (`xAppReportService`, `xAppControlService`)
+  - KPM and RC Service Model wrappers and `sm_framework` ctypes bindings
+  - E2SM-DAPP bridge (report/control/E3 payloads)
+  - Python packaging and PyPI release workflow
+
+
+# Contributors
+
+Listed in chronological order of first contribution.
+We are grateful for every contribution, big or small, that helped shape this project.
+
+- Leonardo Bonati <leonardo.bonati@gmail.com>
+  - RC control message handling and srsRAN `sz_ran_param` compatibility
+  - Logging and README improvements
+
+- Filippo Olimpieri <olimpieri.f@northeastern.edu>
+  - E2SM-DAPP timestamp fields in the ctypes structs and native library
+  - Latency measurement on the dApp report path
+
+- Noemi Giustini <giustini.n@northeastern.edu>
+  - E2SM-CCC (Cell Configuration and Control) implementation and CONTROL functionality
+  - `write_routing_table` A1_POLICY_RESP handling and gnb_info robustness fixes
+
+- Andrea Lacava <a.lacava@northeastern.edu>
+  - Optional `[LAT]` latency markers on the E2/E2SM-DAPP xApp path
