@@ -8,6 +8,9 @@ on:
 jobs:
   create-tag:
     runs-on: ubuntu-latest
+    # Releases are cut from the public mirror only. Without this guard the job also
+    # runs on the private source repo and pushes a stray version tag there.
+    if: github.repository == 'wineslab/xDevSM'
     outputs:
       version: ${{ steps.get_version.outputs.version }}
       tag_created: ${{ steps.set_output.outputs.tag_created }}
