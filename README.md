@@ -35,10 +35,15 @@ pip install xdevsm
 ```
 
 > ℹ️ The package bundles the prebuilt `sm_framework` encoders (`.so`) as package data and is
-> published as a source distribution, so a **linux-x86_64** environment and **Python ≥ 3.11**
-> are required (matching the O-RAN SC Near-RT RIC deployment target). No
-> compiler or `LD_LIBRARY_PATH` setup is needed — the native encoders are loaded relative to the
-> installed package.
+> published as a source distribution, so a **linux-x86_64** environment and **Python 3.11**
+> are required (matching the O-RAN SC Near-RT RIC deployment target). Python 3.12+ is not
+> supported: `ricxappframe` depends on `ricsdl`, which pins `hiredis==2.0.0`, and that
+> version cannot be built on 3.12 or later.
+>
+> No `LD_LIBRARY_PATH` setup is needed — the bundled encoders are loaded relative to the
+> installed package. A **C compiler is required**, though: `hiredis==2.0.0` ships no wheel for
+> 3.11, so pip builds it from source. Slim base images therefore need `gcc` installed (the
+> full `python:3.11-bullseye` image already has it).
 
 For local development (tests, editable install):
 

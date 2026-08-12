@@ -95,9 +95,12 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Python
+        # Must stay 3.11: this job runs `pip install -e .`, and the dependency tree cannot
+        # install on 3.12+ (ricsdl pins hiredis==2.0.0, whose setup.py needs the removed
+        # `imp` module).
         uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.11"
 
       - name: Install and test every commit
         shell: bash
