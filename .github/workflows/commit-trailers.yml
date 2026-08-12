@@ -1,0 +1,140 @@
+name: Commit policy
+
+# Enforce the contribution policy documented in CONTRIBUTING.md on incoming pull requests:
+#   - AI agents must not add Co-authored-by/Signed-off-by; AI assistance is disclosed
+#     via an `Assisted-by:` trailer whose value is free-form (any non-empty descriptor).
+#     Checked per pull request only, not on push to `main`: under fast-forward-only merging a
+#     push to `main` just replays commits already checked on the PR, while re-checking it would
+#     also judge imported history that predates this policy;
+#   - the PR branch is a linear, fast-forward-able descendant of `main` (no merge commits);
+#   - the PR head installs and passes tests.
+# Atomic commits remain a review expectation (see CONTRIBUTING.md) but are not machine-checked:
+# walking every commit cannot work for a series that introduces or repairs the test suite
+# partway through, since the earlier commits legitimately predate the fix.
+# On approval, it also posts the exact fast-forward merge command for the maintainer.
+
+on:
+  pull_request:
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  check-trailers:
+    name: AI-assistant trailer policy
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check commit trailers
+        run: |
+          base="${{ github.event.pull_request.base.sha }}"
+          head="${{ github.event.pull_request.head.sha }}"
+          python3 scripts/check_commit_trailers.py --base "$base" --head "$head"
+
+  linear-history:
+    name: Fast-forward / linear history
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check linear, fast-forward-able history
+        run: |
+          base="${{ github.event.pull_request.base.sha }}"
+          head="${{ github.event.pull_request.head.sha }}"
+          merges="$(git rev-list --merges "$base..$head")"
+          if [ -n "$merges" ]; then
+            echo "::error::PR contains merge commits; rebase onto main (fast-forward only, no merge commits)."
+            git log --merges --oneline "$base..$head"
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$base" "$head"; then
+            echo "::error::Branch is behind main; rebase onto the latest main so it can be fast-forwarded."
+            exit 1
+          fi
+          echo "Linear history OK: $(git rev-list --count "$base..$head") commit(s), fast-forward-able."
+
+  changes:
+    name: Detect code changes
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - id: filter
+        shell: bash
+        run: |
+          base="${{ github.event.pull_request.base.sha }}"
+          head="${{ github.event.pull_request.head.sha }}"
+          echo "Changed files:"; git diff --name-only "$base..$head"
+          noncode='(\.md$)|(^docs/)|(^\.github/)|(^LICENSE$)|(^CONTRIBUTORS$)|(^\.gitignore$)'
+          if git diff --name-only "$base..$head" | grep -qvE "$noncode"; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  head-test:
+    name: PR head installs and tests
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        # Must stay 3.11: this job runs `pip install -e .`, and the dependency tree cannot
+        # install on 3.12+ (ricsdl pins hiredis==2.0.0, whose setup.py needs the removed
+        # `imp` module).
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install and test the PR head
+        shell: bash
+        run: |
+          set -e
+          pip install -e ".[dev]"
+          pytest tests/ -q
+
+  merge-command:
+    name: Post fast-forward merge command
+    if: github.event_name == 'pull_request_review' && github.event.review.state == 'approved'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Comment the fast-forward merge command
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const head = context.payload.pull_request.head.sha;
+            const branch = context.payload.pull_request.head.ref;
+            const body = [
+              '### Ready to merge (fast-forward only)',
+              '',
+              'This PR is approved. A maintainer can land the reviewed commits with:',
+              '',
+              '```bash',
+              'git fetch origin',
+              `git checkout main && git merge --ff-only ${head} && git push origin main`,
+              '```',
+              '',
+              `Head: \`${head}\` (branch \`${branch}\`). If \`--ff-only\` fails as non-fast-forward, the branch must be rebased on the latest \`main\`.`,
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body,
+            });

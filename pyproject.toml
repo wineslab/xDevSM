@@ -1,0 +1,74 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+
+[project]
+name = "xdevsm"
+dynamic = ["version"]
+description = "An SDK framework for building O-RAN xApps over E2 Service Models (KPM, RC, CCC)."
+readme = "README.md"
+# 3.11 only, and the bound is not conservatism: `ricxappframe` pulls `ricsdl`, which hard-pins
+# `hiredis==2.0.0`. That release ships no wheel past cp39, so pip builds it from source, and
+# its setup.py imports `imp` — removed in CPython 3.12. The install is therefore impossible on
+# 3.12+ until ricsdl relaxes the pin. Declaring it here surfaces a clear resolution error
+# instead of a confusing build failure in a transitive dependency.
+# Verified: 3.11 installs and passes (42 passed / 9 skipped on linux-x86_64); 3.12 cannot install.
+requires-python = ">=3.11,<3.12"
+keywords = ["xApp", "O-RAN", "E2SM", "KPM", "RC", "CCC", "near-RT RIC", "5G", "cellular", "networks"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Operating System :: POSIX :: Linux",
+]
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+dependencies = [
+    "ricxappframe",
+    "mdclogpy",
+    "numpy",
+    "requests",
+]
+
+authors = [                       # order/authors from the WiNTECH 2024 paper
+    {name = "Andrea Feraudo"},
+    {name = "Simone Maxenti"},
+    {name = "Andrea Lacava", email = "thecave003@gmail.com"},
+    {name = "Paolo Bellavista"},
+    {name = "Michele Polese"},
+    {name = "Tommaso Melodia"},
+]
+
+
+[project.urls]
+Homepage = "https://openrangym.com/tutorials/xdevsm-tutorial"
+Package = "https://pypi.org/project/xdevsm/"
+Source = "https://github.com/wineslab/xDevSM"
+"Bug Tracker" = "https://github.com/wineslab/xDevSM/issues"
+
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+
+[tool.hatch.version]
+path = "VERSION"
+pattern = "^(?P<version>\\d+\\.\\d+\\.\\d+)"
+
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/xdevsm"]
+# The prebuilt Service Model encoders are shipped as package data; declare them as
+# build artifacts so they are always included regardless of VCS-ignore rules.
+artifacts = ["src/xdevsm/sm_framework/lib/*.so"]
+
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/xdevsm/**",
+    "VERSION",
+    "README.md",
+    "LICENSE",
+]

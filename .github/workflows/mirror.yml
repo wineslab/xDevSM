@@ -1,0 +1,32 @@
+name: Mirror to Public Repository
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    if: github.repository != 'wineslab/xDevSM'
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: '0'  # Ensures the entire history is fetched
+
+    - name: Set up SSH Key
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/id_ed25519
+        chmod 600 ~/.ssh/id_ed25519
+        ssh-keyscan github.com >> ~/.ssh/known_hosts
+      env:
+        DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+
+    - name: Push to Public Repository
+      run: |
+        echo "Pushing to public repository..."
+        git remote add public git@github.com:wineslab/xDevSM.git
+        git push public main:main --force

@@ -1,0 +1,27 @@
+name: Documentation issue
+description: Report something incorrect, outdated, confusing, or missing in the docs.
+title: "[Docs]: "
+labels: ["documentation"]
+body:
+  - type: input
+    id: location
+    attributes:
+      label: Location
+      description: Which file / section / URL? (e.g. `README.md § Installation`, tutorial page)
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is wrong or missing
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested fix
+      description: How should it read instead?
+    validations:
+      required: false

@@ -1,0 +1,37 @@
+name: Question / support
+description: Ask a usage question, or request access to the internal development repository.
+title: "[Question]: "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For usage questions, please first check the [README](../../README.md), the
+        [xDevSM tutorial](https://openrangym.com/tutorials/xdevsm-tutorial), and the
+        [`xDevSM-xapps-examples`](https://github.com/wineslab/xDevSM-xapps-examples) repo.
+
+        To **request access to the internal development repository**, keep the `access-request`
+        label and describe what you intend to work on.
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+    validations:
+      required: true
+
+  - type: textarea
+    id: tried
+    attributes:
+      label: What you have tried
+      description: Commands, docs read, and what happened.
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: xdevsm version, OSC RIC release, OS, and anything else relevant.
+    validations:
+      required: false

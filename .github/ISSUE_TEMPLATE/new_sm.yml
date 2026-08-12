@@ -1,0 +1,85 @@
+name: New Service Model (SM) request
+description: Propose a new E2 Service Model wrapper for xDevSM (e.g. a new E2SM alongside KPM/RC/CCC).
+title: "[New SM]: "
+labels: ["enhancement", "service-model", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        xDevSM exposes E2 Service Models to xApp developers through decorator wrappers
+        (`xAppReportService` / `xAppControlService`) backed by the `sm_framework` encode/decode
+        layer. A new SM typically needs both a wrapper (under `src/xdevsm/decorators/<sm>/`) and
+        a codec in `src/xdevsm/sm_framework/` (pure-Python for JSON SMs like CCC, or ctypes
+        bindings to a native `.so` for ASN.1 SMs like KPM/RC).
+
+  - type: input
+    id: name
+    attributes:
+      label: Proposed SM name
+      placeholder: "e2sm_ni, my_custom_sm, ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use case
+      description: What does the SM enable? What problem does it solve that KPM/RC/CCC don't?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: direction
+    attributes:
+      label: RIC service direction
+      options:
+        - "REPORT (gNB → xApp indications)"
+        - "CONTROL (xApp → gNB control)"
+        - "POLICY / INSERT"
+        - "Both REPORT and CONTROL"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: encoding
+    attributes:
+      label: Wire encoding
+      options:
+        - "ASN.1 (needs a native sm_framework .so, like KPM/RC)"
+        - "JSON (pure-Python codec, like CCC)"
+        - "Other"
+    validations:
+      required: true
+
+  - type: textarea
+    id: schema
+    attributes:
+      label: Proposed message schema
+      description: Paste the E2SM ASN.1 module(s) or JSON schema. Even a draft is fine.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: wrapper_side
+    attributes:
+      label: Wrapper side — what changes
+      description: New decorator subclass under `src/xdevsm/decorators/<sm>/`? Which base (`xAppReportService`/`xAppControlService`)? Reference existing patterns.
+    validations:
+      required: true
+
+  - type: textarea
+    id: codec_side
+    attributes:
+      label: sm_framework side — what changes
+      description: New encoder/decoder under `src/xdevsm/sm_framework/py_oran/<sm>/`, and (for ASN.1) the native `.so` provenance. Describe.
+    validations:
+      required: true
+
+  - type: textarea
+    id: consumer_side
+    attributes:
+      label: Consumer impact
+      description: Which example/xApp repos (`xDevSM-xapps-examples`, `spectranet-xapps`) would demonstrate or consume this SM? Write "None" if not applicable.
+    validations:
+      required: true

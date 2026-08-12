@@ -1,0 +1,7 @@
+# Code owners for xDevSM.
+# Each line is a file pattern followed by one or more owners.
+# Owners are auto-requested for review on PRs that touch matching files.
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-security/customizing-your-repository/about-code-owners
+
+# Default owners for everything in the repo (primary maintainer first).
+*       @aferaudo @leonardobonati @Ninjabippo1205 @Noemi2001 @Thecave3
