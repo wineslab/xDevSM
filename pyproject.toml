@@ -8,7 +8,11 @@ name = "xdevsm"
 dynamic = ["version"]
 description = "An SDK framework for building O-RAN xApps over E2 Service Models (KPM, RC, CCC)."
 readme = "README.md"
-requires-python = ">=3.11"
+# Upper bound matches the tested CI matrix. `ricxappframe` pulls `ricsdl`, which hard-pins
+# `hiredis==2.0.0`; that release only ships wheels up to cp39, so it is compiled from source
+# on every supported interpreter and fails to build on CPython 3.14. Capping here surfaces a
+# clear resolution error instead of a C compiler failure in a transitive dependency.
+requires-python = ">=3.11,<3.13"
 keywords = ["xApp", "O-RAN", "E2SM", "KPM", "RC", "CCC", "near-RT RIC", "5G", "cellular", "networks"]
 classifiers = [
     "Development Status :: 4 - Beta",
