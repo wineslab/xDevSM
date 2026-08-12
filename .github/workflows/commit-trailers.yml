@@ -1,8 +1,11 @@
 name: Commit policy
 
-# Enforce the contribution policy documented in CONTRIBUTING.md:
+# Enforce the contribution policy documented in CONTRIBUTING.md on incoming pull requests:
 #   - AI agents must not add Co-authored-by/Signed-off-by; AI assistance is disclosed
-#     via an `Assisted-by:` trailer whose value is free-form (any non-empty descriptor);
+#     via an `Assisted-by:` trailer whose value is free-form (any non-empty descriptor).
+#     Checked per pull request only, not on push to `main`: under fast-forward-only merging a
+#     push to `main` just replays commits already checked on the PR, while re-checking it would
+#     also judge imported history that predates this policy;
 #   - the PR branch is a linear, fast-forward-able descendant of `main` (no merge commits);
 #   - the PR head installs and passes tests.
 # Atomic commits remain a review expectation (see CONTRIBUTING.md) but are not machine-checked:
@@ -14,14 +17,11 @@ on:
   pull_request:
   pull_request_review:
     types: [submitted]
-  push:
-    branches:
-      - main
 
 jobs:
   check-trailers:
     name: AI-assistant trailer policy
-    if: github.event_name != 'pull_request_review'
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -30,13 +30,8 @@ jobs:
 
       - name: Check commit trailers
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            base="${{ github.event.pull_request.base.sha }}"
-            head="${{ github.event.pull_request.head.sha }}"
-          else
-            base="${{ github.event.before }}"
-            head="${{ github.sha }}"
-          fi
+          base="${{ github.event.pull_request.base.sha }}"
+          head="${{ github.event.pull_request.head.sha }}"
           python3 scripts/check_commit_trailers.py --base "$base" --head "$head"
 
   linear-history:
