@@ -44,11 +44,20 @@ class xAppReportService(BaseXDevSMWrapper):
         self.subscriber = subscribe.NewSubscriber(uri=self.uri_subscriptions, rmr_port=self.rmr_port)
         
 
+        # inventory_name -> list of subscription ids. A single xApp may hold
+        # several subscriptions per gNB (e.g. one per slice).
         self.subscription_id = {}
         self.sm_func_wrapper = None
 
         self.__ext_sub_failed_callback = None
         self.__ind_msg_callback = None
+        # Fired when the async subscription response arrives and resolves the
+        # submgr SubscriptionId to the RMR-side E2EventInstanceId. 
+        # Handler signature: handler(submgr_sub_id, e2_event_instance_id, gnb_inv_name).
+        self.__ext_sub_resolved_callback = None
+        # submgr SubscriptionId -> gNB inventory_name, populated at subscribe
+        # time so the async resolver can route back to the originating gNB.
+        self._pending_resolutions = {}
     
     def _handle_indication(self, xapp, summary):
         """
@@ -67,7 +76,7 @@ class xAppReportService(BaseXDevSMWrapper):
             xapp.logger.error("[xAppReportService] Indication header or message byte array is None, skipping processing")
             return
 
-        self.decode_message(indm.function_id, ba_ind_header, ba_ind_msg, summary['meid'])
+        self.decode_message(indm.function_id, ba_ind_header, ba_ind_msg, summary['meid'], summary[rmr.RMR_MS_SUB_ID])
     
     
     def get_ran_function_description(self, json_ran_info):
@@ -96,7 +105,7 @@ class xAppReportService(BaseXDevSMWrapper):
         return func_def_obj
 
     @abstractmethod
-    def decode_message(self, function_id, ba_ind_header, ba_ind_msg):
+    def decode_message(self, function_id, ba_ind_header, ba_ind_msg, meid, sub_id):
         pass
 
     def send_subscription(self, gnb, ev_trigger_enc: ByteArray, actions_to_be_setup):
@@ -133,10 +142,20 @@ class xAppReportService(BaseXDevSMWrapper):
         response_json = json.loads(data)
         self.logger.info("[xAppReportService] reason:{}".format(reason))
         self.logger.info("[xAppReportService] subscription reponse {}".format(response_json))
-        self.subscription_id[gnb.inventory_name] = response_json["SubscriptionId"]
-        self.logger.info("[xAppReportService] Got the subscription reponse, my subscription id for gnb {} is: {}".format(gnb.inventory_name, self.subscription_id))
 
-        return status
+        # The sync response only carries the submgr-issued SubscriptionId
+        # (string). The actual RMR correlator (E2EventInstanceId) is delivered
+        # asynchronously via subs_response_cb once E2 setup completes.
+        submgr_sub_id = response_json.get("SubscriptionId")
+        if submgr_sub_id is not None:
+            self.subscription_id.setdefault(gnb.inventory_name, []).append(submgr_sub_id)
+            self._pending_resolutions[submgr_sub_id] = gnb.inventory_name
+
+        self.logger.info(
+            "[xAppReportService] gnb={} SubscriptionId(submgr)={} - awaiting async resolution".format(
+                gnb.inventory_name, submgr_sub_id))
+
+        return status, submgr_sub_id
 
     def handle(self, xapp, summary, sbuf):
         self._xapp_handler.handle(xapp, summary, sbuf)
@@ -155,21 +174,16 @@ class xAppReportService(BaseXDevSMWrapper):
 
         Returns:
         ----------
-        subscription id for that gnb
+        list of subscription ids registered for that gnb (empty if none)
         """
-        return self.subscription_id[inventory_name]
+        return self.subscription_id.get(inventory_name, [])
 
     def remove_sub_id(self, sub_id: str):
-        to_remove = None
-        for key in self.subscription_id.keys():
-            if self.subscription_id[key] == sub_id:
-                to_remove = key
-                break
-        
-        if to_remove is None:
-            self.logger.error("[XappReportService] subscription id not found")
-        else:
-            del self.subscription_id[to_remove]
+        for sub_ids in self.subscription_id.values():
+            if sub_id in sub_ids:
+                sub_ids.remove(sub_id)
+                return
+        self.logger.error("[XappReportService] subscription id not found")
     
     def subs_response_cb(self, name, path, data, ctype):
         response = ricrest.initResponse()
@@ -185,9 +199,30 @@ class xAppReportService(BaseXDevSMWrapper):
         else:
             self.logger.info("called response handler subscription successfull! Response: {}".format(response_json))
             response['payload'] = json.dumps(response_json)
-        
+            # Notify the xApp that submgr_sub_id (string) is now resolved to
+            # an E2EventInstanceId (int) — the latter is what RMR stamps onto
+            # subsequent indications.
+            submgr_sub_id = response_json.get("SubscriptionId")
+            instances = response_json.get("SubscriptionInstances") or []
+            e2_event_instance_id = instances[0].get("E2EventInstanceId") if instances else None
+            gnb_inv = self._pending_resolutions.pop(submgr_sub_id, None)
+            self.logger.info(
+                "[xAppReportService] subscription resolved: submgr={} e2_event_instance_id={} gnb={}".format(
+                    submgr_sub_id, e2_event_instance_id, gnb_inv))
+            if e2_event_instance_id is not None and self.__ext_sub_resolved_callback is not None:
+                self.__ext_sub_resolved_callback(submgr_sub_id, e2_event_instance_id, gnb_inv)
+
         return response
 
+
+    def register_sub_resolved_callback(self, handler):
+        """
+        Register a callback fired when the async subscription response resolves
+        a submgr SubscriptionId to its RMR-side E2EventInstanceId.
+
+        Handler signature: handler(submgr_sub_id, e2_event_instance_id, gnb_inv_name)
+        """
+        self.__ext_sub_resolved_callback = handler
 
     def register_sub_fail_callback(self, handler):
         """

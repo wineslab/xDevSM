@@ -3,14 +3,14 @@
 ## Overview
 
 The xDevSM API framework provides xApp developers with a SDK exposing simple APIs to streamline the procedures defined by different E2SM protocols, facilitating interactions between the xApp, the near-RT RIC, and the E2 termination on the RAN.
-It wraps and orchestrates message encoding/decoding, RMR-based communication, and SM-specific behavior. Internally, it delegates encoding and decoding tasks to the `sm_framework`, which defines the core logic for each Service Model (KPM and RC).
+It wraps and orchestrates message encoding/decoding, RMR-based communication, and SM-specific behavior. Internally, it delegates encoding and decoding tasks to the `sm_framework`, which defines the core logic for each Service Model (KPM, RC, and CCC).
 
 xDevSM is built on top of [ricxappframe](https://pypi.org/project/ricxappframe/) python framework.
 
 The architecture separates three main layers:
 
 1. **xApp API Layer** — developer-facing classes (`BasexDevSMXapp`, `xDevSMRMRXapp`, wrappers).
-2. **Service Model Wrappers** — expose KPM and RC functionalities.
+2. **Service Model Wrappers** — expose KPM, RC, and CCC functionalities.
 3. **sm_framework** — performs actual encoding/decoding (internal).
 
 > ⚠️ The xDevSM framework is designed to operate exclusively with the O-RAN Software Community (OSC) Near-RT RIC. </br> ℹ️ The current version has been tested with the OSC RIC Release J.
@@ -20,6 +20,7 @@ The architecture separates three main layers:
 |-----------------------|--------------------|---------------------------|
 | **KPM (Key Performance Measurement)** | Measurement Actions | • Common Condition-based Measurement, UE-level Measurement |
 | **RC (RAN Control)** | Control Actions | • QoS Flow Mapping Configuration<br>• Slice-level PRB Quota Action (only monolithic gNBs)<br>• Connected Mode Mobility Control |
+| **CCC (Cell Configuration and Control)** | Report Actions | • Cell-level RAN Configuration Reporting (REPORT Style 2, periodic event trigger) — e.g. `O-NRCellDU` attributes |
 ---
 
 ## Class Hierarchy
@@ -30,7 +31,8 @@ BasexDevSMXapp
     └── xDevSMRMRXapp
     └── BaseXDevSMWrapper
         ├── xAppReportService
-        │   └── XappKpmFrame
+        │   ├── XappKpmFrame
+        │   └── XappCccFrame
         └── xAppControlService
                 ├── RadioBearerControl
                 ├── RadioResourceAllocationControl
@@ -82,7 +84,7 @@ Provides a composition interface that connects Service Model–specific APIs (KP
 * `xapp_handler` — instance of `BasexDevSMXapp`.
 
 **Usage:**
-This class is not used directly but extended by SM-specific wrappers like `XappKpmFrame` and `RCControlBase` providing the actual APIs.
+This class is not used directly but extended by RIC service bases (`xAppReportService`, `xAppControlService`) and then by Service Model–specific decorators (e.g. `XappKpmFrame`, `RadioResourceAllocationControl`) that expose the actual APIs.
 
 ---
 
@@ -113,7 +115,58 @@ kpm_api.subscribe(gnb=self.selected_gnb,
 
 
 ---
-## 6. xAppReportService
+
+## 6. XappCccFrame
+
+**Purpose:**
+Implements the external API for the **Cell Configuration and Control (CCC)** Service Model (`ORAN-E2SM-CCC`, RAN Function OID `1.3.6.1.4.1.53148.1.1.2.4`, SM ID `149`). Like `XappKpmFrame`, it is a **REPORT**-type decorator and extends `xAppReportService`, mirroring the KPM lifecycle (subscribe → indication decode → callback).
+
+Unlike KPM and RC, E2SM-CCC uses a **JSON** wire encoding rather than ASN.1, so the CCC encoders/decoders in `sm_framework/py_oran/ccc/` are pure-Python and never cross into the native `.so` libraries.
+
+**Common Operations:**
+
+* Encode CCC Subscription Requests — periodic Event Trigger (Format 3) + cell-level Action Definition (Format 2, REPORT Style 2).
+* Decode and parse received CCC Indications via `CccIndicationHeader` / `CccIndicationMessage`.
+
+**Supported REPORT style:**
+
+| Style | Description |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| REPORT Style 2 — Cell Level  | Reports RAN Configuration Structures (e.g. `O-NRCellDU`) and a selected set of attributes (`arfcnDL`, `bSChannelBwDL`, `bWPList`, …) per cell. |
+
+**Example:**
+
+```python
+xapp_gen = xDevSMRMRXapp("0.0.0.0", route_file=args.route_file)
+
+ccc_xapp = XappCccFrame(xapp_gen,
+                        logger=xapp_gen.logger,
+                        server=xapp_gen.server,
+                        xapp_name=xapp_gen.get_xapp_name(),
+                        rmr_port=xapp_gen.rmr_port,
+                        http_port=xapp_gen.http_port,
+                        pltnamespace=xapp_gen.get_pltnamespace(),
+                        app_namespace=xapp_gen.get_app_namespace())
+
+# Wire callbacks
+xapp_gen.register_handler(ccc_xapp.handle)
+ccc_xapp.register_ind_msg_callback(handler=indication_callback)   # (hdr, msg, meid, sub_id)
+ccc_xapp.register_sub_fail_callback(handler=sub_failed_callback)
+
+# Subscribe to a periodic cell-level REPORT on O-NRCellDU
+ccc_xapp.subscribe(gnb=selected_gnb,
+                   ran_period_ms=1000,
+                   ran_cfg_structure_name="O-NRCellDU",
+                   attributes=["arfcnDL", "bSChannelBwDL", "bWPList"])
+
+# or the one-call helper for those three target attributes:
+ccc_xapp.subscribe_arfcn_bw_bwps(gnb=selected_gnb, ran_period_ms=1000)
+```
+
+> ℹ️ The indication callback signature is `handler(ind_hdr, ind_msg, meid, sub_id)`. Iterate the reported cells/structures with `ind_msg.cells()` / `ind_msg.iter_structures()`.
+
+---
+## 7. xAppReportService
 
 **Purpose:**
 Provides the base class for **Report-type** Service Models. Handles subscription management, indication message routing, and decoding.
@@ -129,10 +182,11 @@ Provides the base class for **Report-type** Service Models. Handles subscription
 | Subclass        | Description                                         |
 | --------------- | --------------------------------------------------- |
 | `XappKpmFrame`  | Implements KPM-specific subscription and indication handling. |
+| `XappCccFrame`  | Implements CCC-specific (Cell Configuration and Control) subscription and indication handling over a JSON encoding. |
 
 ---
 
-## 7. xAppControlService
+## 8. xAppControlService
 
 **Purpose:**
 Provides the base class for the **Radio Control (RC)** Service Model. Defines shared functionality across different RC control operations.
@@ -220,9 +274,11 @@ rc_xapp = ConnectedModeMobilityControl(xapp_gen,
 
 ---
 
-## 8. Service Model Encoder/Decoder
+## 9. Service Model Encoder/Decoder
 
-The `sm_framework` provides the internal logic for encoding and decoding messages according to the KPM and RC Service Models. The external APIs (`XappKpmFrame`, `RCControlBase`, etc.) rely on these internal classes to translate between Python objects and binary payloads.
+The `sm_framework` provides the internal logic for encoding and decoding messages according to the KPM, RC, and CCC Service Models. The xDevSM decorators are organized by RIC service direction: `xAppReportService` and `xAppControlService` are the generic bases for report- and control-style services, and any service model (KPM, RC, CCC, ...) plugs in by extending the appropriate base — for example `XappKpmFrame` and `XappCccFrame` extend `xAppReportService`, and `RadioResourceAllocationControl` extends `xAppControlService`.
+
+> ℹ️ KPM and RC serialize through ctypes bindings to the native `.so` libraries, whereas CCC (E2SM-CCC) uses a pure-Python **JSON** codec in `sm_framework/py_oran/ccc/`.
 
 ```
 [ xApp code ] → [ xDevSM API ] → [ sm_framework (encode/decode) ] → [ E2AP + RMR ]
@@ -232,9 +288,9 @@ Developers using `xDevSM` do not directly call `sm_framework`; it is fully manag
 
 ---
 
-## 9. Example xApps
+## 10. Example xApps
 
-For end-to-end examples of KPM and RC xApps built on top of this API, see:
+For end-to-end examples of KPM, RC, and CCC xApps built on top of this API, see:
 
 **[xDevSM-xapps-examples](https://github.com/wineslab/xDevSM-xapps-examples/tree/code_refactoring)**
 
@@ -244,9 +300,11 @@ This repository contains working implementations that demonstrate:
 * Registration of handlers.
 * Sending and receiving encoded Service Model messages.
 
+The **CCC basic xApp** (`ccc_xapp.py`) is a minimal reference: it subscribes to a periodic O-NRCellDU REPORT (Style 2 / Event Trigger Format 3) and pretty-prints every incoming indication (cell identity, frequencies, SSB, BWP list, …).
+
 ---
 
-## 10. Extending the API
+## 11. Extending the API
 
 To support a new Service Model (E2SM):
 
@@ -257,7 +315,7 @@ To support a new Service Model (E2SM):
 
 ---
 
-## 11. Other Sources
+## 12. Other Sources
 
 A detailed step-by-step tutorial for setting up a deployment to begin working with xDevSM is available [here](https://openrangym.com/tutorials/xdevsm-tutorial).
 
