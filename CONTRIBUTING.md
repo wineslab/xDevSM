@@ -21,10 +21,13 @@ Please note we have a code of conduct, please follow it in all your interactions
 4. Your branch must fast-forward onto `main`. Keep it a linear descendant of `main` (rebase onto
    the latest `main` whenever `main` moves) with no merge commits, so the exact commits reviewed
    in the Pull Request are the ones that land. Merges without prior approval are not allowed.
-5. Every commit must stand on its own. Each commit must install and pass tests independently, so
-   `git bisect` stays usable. Fold "WIP"/"fixup" commits into coherent commits (`git rebase -i`)
-   before review, and give each a descriptive message: an imperative subject line and, for
-   non-trivial changes, a body explaining the *what* and *why*.
+5. Every commit should stand on its own, installing and passing tests independently so
+   `git bisect` stays usable. This is a review expectation, not a machine-enforced gate: CI
+   installs and tests the Pull Request head, since a series that introduces or repairs the test
+   suite partway through has earlier commits that legitimately cannot pass it. Fold
+   "WIP"/"fixup" commits into coherent commits (`git rebase -i`) before review, and give each a
+   descriptive message: an imperative subject line and, for non-trivial changes, a body
+   explaining the *what* and *why*.
 
 ## Development Workflow
 
