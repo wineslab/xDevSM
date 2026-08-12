@@ -20,7 +20,10 @@ def _importable(module: str) -> bool:
 
 
 NATIVE_AVAILABLE = _importable("xdevsm.sm_framework.lib.library_wrapper")
-RICXAPP_AVAILABLE = _importable("ricxappframe")
+# Probe the submodule the handlers/decorators actually import, not the bare package: the
+# `ricxappframe` __init__ imports cleanly everywhere, while `xapp_frame` is what pulls in
+# mdclogpy -> inotify (Linux-only) and the RMR C library.
+RICXAPP_AVAILABLE = _importable("ricxappframe.xapp_frame")
 
 requires_native = pytest.mark.skipif(
     not NATIVE_AVAILABLE,
