@@ -363,7 +363,28 @@ To support a new Service Model (E2SM):
 
 ---
 
-## 12. Other Sources
+## 12. Latency instrumentation (latrec)
+
+xDevSM can record per-stage latency data for the E2AP/E2SM-DAPP legs it owns
+(indication decode, control encode, and the E2AP framing/send around it),
+using **latrec**, the ring-recorder format shared with
+[libe3](https://github.com/wineslab/libe3) and the rest of the E2/E3 stack.
+It is off by default and adds no overhead unless enabled.
+
+- **Enable** by setting `LATREC_DIR` to a writable directory before starting
+  the xApp process. Each stamping thread writes one `<role>.<tid>.latrec`
+  ring file there (role `xdevsm`).
+- **Disable** by leaving `LATREC_DIR` unset — every stamp call becomes a
+  no-op with negligible overhead (see `scripts/latrec_bench.py` for a local
+  measurement of the per-stamp cost on your own hardware).
+- The writer (`xdevsm._latrec.writer`) is a self-contained, pure-Python
+  module with no `xdevsm`-specific dependencies, so it can be reused as-is
+  by other pure-Python components that need the same mechanism.
+- Rings are read with libe3's own tooling (`tools/latrec_reader.py` /
+  `tools/latrec2csv.py`); the stage identifiers this package stamps mirror
+  `libe3/include/libe3/latrec.h` (see `xdevsm/_latrec/stages.py`).
+
+## 13. Other Sources
 
 A detailed step-by-step tutorial for setting up a deployment to begin working with xDevSM is available [here](https://openrangym.com/tutorials/xdevsm-tutorial).
 

@@ -1,10 +1,10 @@
-"""Pure-Python utilities: constants, latency markers, file/config helpers."""
+"""Pure-Python utilities: constants, file/config helpers."""
 
 import json
 
 import pytest
 
-from xdevsm.utils import lat_profile, utility
+from xdevsm.utils import utility
 from xdevsm.utils.constants import Values
 
 
@@ -76,36 +76,3 @@ def test_get_c_byte_array():
     arr = utility.get_c_byte_array_from_py_byte_string(b"abc")
     assert arr is not None
     assert len(arr) == 3
-
-
-def test_lat_log_noop_when_disabled(monkeypatch):
-    monkeypatch.setattr(lat_profile, "_ENABLED", False)
-    assert lat_profile.enabled() is False
-
-    class _Rec:
-        def __init__(self):
-            self.msgs = []
-
-        def info(self, msg):
-            self.msgs.append(msg)
-
-    logger = _Rec()
-    lat_profile.lat_log(logger, "stage-x")
-    assert logger.msgs == []  # disabled -> nothing logged
-
-
-def test_lat_log_emits_when_enabled(monkeypatch):
-    monkeypatch.setattr(lat_profile, "_ENABLED", True)
-
-    class _Rec:
-        def __init__(self):
-            self.msgs = []
-
-        def info(self, msg):
-            self.msgs.append(msg)
-
-    logger = _Rec()
-    lat_profile.lat_log(logger, "stage-x", foo=1)
-    assert logger.msgs
-    assert "[LAT]" in logger.msgs[0]
-    assert "stage=stage-x" in logger.msgs[0]

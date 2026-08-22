@@ -1,6 +1,7 @@
 from abc import abstractmethod
 from typing import Tuple
 import json
+import threading
 
 # osc frame
 from ricxappframe.xapp_frame import rmr
@@ -12,6 +13,8 @@ import ricxappframe.xapp_rest as ricrest
 import xdevsm.utils.xapp_sub as subscribe
 from xdevsm.utils.constants import Values
 import xdevsm.utils.utility as utility
+from xdevsm._latrec.writer import ring, ctx_get
+from xdevsm._latrec import stages
 
 # xDevSM base dec
 from xdevsm.decorators.base import BaseXDevSMWrapper
@@ -67,6 +70,10 @@ class xAppReportService(BaseXDevSMWrapper):
 
         # decoding E2AP
         indm.decode(summary[rmr.RMR_MS_PAYLOAD])
+        # DECODE_E2AP_DONE: aux2 = RMR message type, the closest stand-in
+        # available here for the shared catalog's "PDU type" convention.
+        ring(f"xdevsm.{threading.get_ident()}").stamp(
+            ctx_get(), stages.DECODE_E2AP_DONE, aux2=summary[rmr.RMR_MS_MSG_TYPE])
         xapp.logger.info("[xAppReportService] E2AP Decoded function id: {}".format(indm.function_id))
 
         ba_ind_header = utility.get_c_byte_array_from_py_byte_string(indm.indication_header)

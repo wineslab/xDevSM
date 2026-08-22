@@ -1,4 +1,5 @@
 import json
+import threading
 
 # osc xappframe
 from ricxappframe.xapp_frame import rmr
@@ -9,7 +10,8 @@ import ricxappframe.xapp_rest as ricrest
 import xdevsm.utils.xapp_sub as subscribe
 from xdevsm.utils.constants import Values
 import xdevsm.utils.utility as utility
-from xdevsm.utils.lat_profile import lat_log
+from xdevsm._latrec.writer import ring, ctx_get
+from xdevsm._latrec import stages
 
 
 # xDevSM decorators
@@ -65,7 +67,12 @@ class DAppReport(xAppReportService):
         if function_id != self.function_id:
             self.logger.info("[DAppReport] received indication for different function id: {}".format(function_id))
             return
-        
+
+        # DECODE_E2SM_BEGIN: start of B3, the E2SM-DAPP indication decode.
+        seq = ctx_get()
+        _lr = ring(f"xdevsm.{threading.get_ident()}")
+        _lr.stamp(seq, stages.DECODE_E2SM_BEGIN, aux=len(ba_ind_header) + len(ba_ind_msg))
+
         # Decoding DApp Indication Header
         dapp_ind_hdr_wrapper = DAppIndicationHdr.DAppIndHdrWrapper(byte_array=ba_ind_header)
         dapp_ind_hdr = dapp_ind_hdr_wrapper.decode()
@@ -86,8 +93,6 @@ class DAppReport(xAppReportService):
         dapp_ind_msg_wrapper = DAppIndicationMsg.DAppIndicationMsgWrapper(byte_array=ba_ind_msg)
         dapp_ind_msg = dapp_ind_msg_wrapper.decode()
         self.logger.info("[DAppReport] Decoded DApp Indication Message: decoded")
-        # Stage: E2SM-DAPP indication (dApp report) decoded at the xApp.
-        lat_log(self.logger, "xapp_ind_decode", rf=function_id)
 
         if dapp_ind_msg.format.value != DAppIndicationMsg.e2sm_dapp_ind_msg_format_e.FORMAT_1_E2SM_DAPP_IND_MSG and dapp_ind_msg.format.value != DAppIndicationMsg.e2sm_dapp_ind_msg_format_e.FORMAT_2_E2SM_DAPP_IND_MSG:
             self.logger.error("[DAppReport] DApp Indication Message format not supported")
@@ -99,12 +104,13 @@ class DAppReport(xAppReportService):
         # dapp_e3_ind_payload_wrapper = DAppE3IndPayload.DAppE3IndPayloadWrapper(ran_func_id=dapp_ind_hdr.union.frmt_0.ran_function_id, byte_array=prb_blocked)
         # dapp_e3_ind_payload_wrapper.decode()
         # self.logger.info("[DAppReport] Decoded DApp E3 Indication Payload: decoded")
-        
-       
+
+        # DECODE_E2SM_DONE: end of B3 -- also B4's entry, so this fires right
+        # at the handoff to the xApp's own callback, decode complete either way.
+        _lr.stamp(seq, stages.DECODE_E2SM_DONE)
+
         ind_msg_callback = self.get_indication_msg_callback()
         if ind_msg_callback is not None:
-            # Stage: handing the decoded report to the xApp's user callback.
-            lat_log(self.logger, "xapp_ind_cb")
             ind_msg_callback(dapp_ind_hdr, dapp_ind_msg, meid)
         else:
             self.logger.warning("[DAppReport] No indication message callback registered, skipping processing")

@@ -1,5 +1,6 @@
 import numpy as np
 import ctypes
+import threading
 
 from xdevsm.decorators.base import BaseXDevSMWrapper
 
@@ -13,7 +14,8 @@ import xdevsm.sm_framework.py_oran.rc.RCControlHdr as ctrlhdr
 
 # utility
 from xdevsm.utils.constants import Values
-from xdevsm.utils.lat_profile import lat_log
+from xdevsm._latrec.writer import ring, seq_next, ctx_set, ctx_get
+from xdevsm._latrec import stages
 
 class xAppControlService(BaseXDevSMWrapper):
     def __init__(self,
@@ -136,6 +138,14 @@ class xAppControlService(BaseXDevSMWrapper):
 
         self.logger.info("{} style supported generating message".format(self.service_style_name))
 
+        # ENCODE_E2SM_BEGIN: start of B5, the control decision's SM encode.
+        # A fresh seq: this is the start of the policy-down leg, not a
+        # continuation of whatever inbound message (if any) triggered it.
+        seq = seq_next()
+        ctx_set(seq)
+        _lr = ring(f"xdevsm.{threading.get_ident()}")
+        _lr.stamp(seq, stages.ENCODE_E2SM_BEGIN)
+
         self.generate_control_request(ue_id_struct=ue_id_struct, control_action_id=control_action_id)
 
         # self.service_model_wrapper.print_ctrl_req()
@@ -147,16 +157,20 @@ class xAppControlService(BaseXDevSMWrapper):
 
         self.logger.info("[xAppControlService] hdr encoded: {}".format(hdr_byte_array))
         self.logger.info("[xAppControlService] ctrl encoded: {}".format(ctrl_msg_byte_array))
-        # Stage: xApp control ASN.1-encoded, about to be framed for RMR.
-        lat_log(self.logger, "xapp_ctrl_encode",
-                hdr=len(hdr_byte_array), msg=len(ctrl_msg_byte_array))
+        # ENCODE_E2SM_DONE: end of B5 -- hands to B6 (ENCODE_E2AP_BEGIN).
+        _lr.stamp(seq, stages.ENCODE_E2SM_DONE,
+                  aux=len(hdr_byte_array) + len(ctrl_msg_byte_array))
         self.send_control_request_rmr(e2_node_id=e2_node_id,
                                         control_header=hdr_byte_array,
                                         control_message=ctrl_msg_byte_array)
         
 
     def send_control_request_rmr(self, e2_node_id, control_header: bytes, control_message: bytes, call_process_id: bytes=b"1", requestor_id=1, control_ack_request=1, request_sequence_number=0):
-        
+
+        seq = ctx_get()
+        _lr = ring(f"xdevsm.{threading.get_ident()}")
+        # ENCODE_E2AP_BEGIN: start of B6, the E2AP framing of the control request.
+        _lr.stamp(seq, stages.ENCODE_E2AP_BEGIN)
         rc_ctrl_rec_msg = ControlRequestMsg()
         size, payload = rc_ctrl_rec_msg.encode(call_process_id=call_process_id,
                                                requestor_id=requestor_id,
@@ -175,9 +189,11 @@ class xAppControlService(BaseXDevSMWrapper):
         sbuf.contents.sub_id = -1
         self.logger.info("[xAppControlService] E2 node id: {}".format(e2_node_id.encode("utf8")))
         rmr.rmr_set_meid(sbuf, e2_node_id.encode("utf8"))
-        # Stage: control request leaving the xApp over RMR toward the RIC.
-        lat_log(self.logger, "xapp_ctrl_send", bytes=size)
         sbuf = rmr.rmr_send_msg(self._mrc, sbuf)
+        # ENCODE_E2AP_DONE: fires once the RMR send returns, matching the
+        # shared catalog's own definition -- not when the encode alone
+        # finishes (flexric stamps this the same way, see msg_handler_xapp.c).
+        _lr.stamp(seq, stages.ENCODE_E2AP_DONE, aux=size)
         self.logger.info("[xAppControlService] Message Sent")
     
     def _handle_control_ack_suc(self, xapp, summary, sbuf):
