@@ -24,3 +24,17 @@ def test_rc_modules_bind_native_symbols():
 
     assert isinstance(RCControlReqWrapper, type)
     assert isinstance(RCFuncDefWrapper, type)
+
+
+@requires_native
+def test_rc_report_helpers_bound_in_shipped_library():
+    """The bundled librc_1_03.so must export the ``rc_report_*`` ABI.
+
+    The codec degrades gracefully against a control-only build (it records the
+    binding failure in ``_LIB_ERR`` and raises only at call time), so without this
+    the RC REPORT path would silently stop working if the old library came back.
+    """
+    from xdevsm.sm_framework.py_oran.rc import rc_report_codec
+
+    assert rc_report_codec._LIB_ERR is None, rc_report_codec._LIB_ERR
+    assert rc_report_codec._report_lib is not None

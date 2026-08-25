@@ -12,6 +12,7 @@ EXPECTED_EXPORTS = {
     "BaseXDevSMWrapper",
     "XappKpmFrame",
     "XappCccFrame",
+    "XappRcReportFrame",
     "RadioBearerControl",
     "RadioResourceAllocationControl",
     "ConnectedModeMobilityControl",
