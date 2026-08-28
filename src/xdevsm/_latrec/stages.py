@@ -11,6 +11,10 @@ XAPP_PROCESS_DONE (0x62, B4's exit) is deliberately not stamped by this
 package: B4 is the researcher's own xApp callback, not the framework.
 """
 
+# Ring role for this package's threads: rings are <role>.<tid>.latrec, and
+# libe3's converter already maps the "xdevsm" role onto its xapp component.
+LATREC_ROLE = "xdevsm"
+
 DECODE_E2AP_BEGIN = 0x5A
 DECODE_E2AP_DONE = 0x5B
 DECODE_E2SM_BEGIN = 0x60

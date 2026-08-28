@@ -26,6 +26,14 @@ valid), aux(u64), aux2(u64). The cpu byte is left 0: CPython has no
 ``os.sched_getcpu()`` before 3.13, and reading it per stamp any other way
 costs more than the stamp.
 
+One caveat against libe3's C writer: it publishes t_ns with an explicit
+release store (``LATREC_STORE_RELEASE``), and Python has no equivalent --
+``struct.pack_into`` is a plain memcpy. Writing t_ns last is therefore
+ordered by the hardware alone: guaranteed on x86-64 (TSO), not on aarch64.
+That only matters to a *live* reader racing the writer; the offline
+capture-then-convert workflow these rings are built for reads a quiescent
+file, where the ordering is moot.
+
 This module is meant to be adopted as-is by other pure-Python components in
 this stack (e.g. spear-dApp) once they need the same mechanism -- keep it
 free of any project-specific imports so reuse is a straight copy, not a
@@ -46,6 +54,14 @@ _HDR = struct.Struct("<IIQQQQ64s")      # v1 prefix; offsets frozen
 _HDR_V2 = struct.Struct("<IIQQ")        # rec_size, clock_ns_per_call, t1_mono, t1_real
 _V2_OFF = 104
 
+# Sampled once, at import, for tls_ring()'s fast path only -- the stamp sites
+# are on the message hot path, and re-deriving "is tracing on" per stamp is
+# what made the disabled path cost anything at all. LatRec() and ring() still
+# read os.environ per call, so they stay configurable at runtime (the tests
+# rely on that); tls_ring() is the one that must be free when off, and
+# LATREC_DIR is a process-level knob set before start, never mid-run.
+_DIR = os.environ.get("LATREC_DIR") or None
+
 
 def _mono_ns() -> int:
     return time.clock_gettime_ns(time.CLOCK_MONOTONIC)
@@ -55,7 +71,7 @@ def _real_ns() -> int:
     return time.clock_gettime_ns(time.CLOCK_REALTIME)
 
 
-def _measure_clock_ns() -> int:
+def measure_clock_ns() -> int:
     """Mean cost of one _mono_ns(), recorded in the header so a reader can
     discount it. The Python call overhead dominates, so this is much larger
     than the C writers report -- which is the point of recording it."""
@@ -116,14 +132,16 @@ class LatRec:
     a lock guards the index bump; each record still has exactly one writer,
     and t_ns is stored last so a reader never sees a half-written record."""
 
-    def __init__(self, name: str, entries_log2: int = 18):
+    def __init__(self, name: str, entries_log2: int = 18, role: str = None):
         self.enabled = False
         self._mm = None
         d = os.environ.get("LATREC_DIR")
         if not d:
             return
         os.makedirs(d, exist_ok=True)
-        entries = 1 << _entries_log2(name, entries_log2)
+        # Sized by role, named <role>.<tid>: a key derived from the full name
+        # would carry a thread id no one can predict, so it could never be set.
+        entries = 1 << _entries_log2(role or name, entries_log2)
         length = HDR_LEN + entries * _REC_SIZE
         path = os.path.join(d, f"{name}.latrec")
         # Built under a temporary name and renamed once the header is written:
@@ -139,7 +157,7 @@ class LatRec:
         now_m, now_r = _mono_ns(), _real_ns()
         _HDR.pack_into(self._mm, 0, MAGIC, VERSION, entries, 0,
                        now_m, now_r, name.encode()[:63])
-        _HDR_V2.pack_into(self._mm, _V2_OFF, _REC_SIZE, _measure_clock_ns(),
+        _HDR_V2.pack_into(self._mm, _V2_OFF, _REC_SIZE, measure_clock_ns(),
                           now_m, now_r)
         os.rename(tmp, path)
         self._mask = entries - 1
@@ -185,20 +203,65 @@ _rings = {}
 _rings_lock = threading.Lock()
 
 
-def ring(name: str, entries_log2: int = 18) -> "LatRec":
+def ring(name: str, entries_log2: int = 18, role: str = None) -> "LatRec":
     """Get-or-create a process-wide named ring (e.g. ``xdevsm.12345``)."""
     with _rings_lock:
         r = _rings.get(name)
         if r is None:
-            r = LatRec(name, entries_log2)
+            r = LatRec(name, entries_log2, role)
             _rings[name] = r
         return r
 
 
-@atexit.register
-def _flush_rings() -> None:
-    """Rings are not closed by their users, so refresh rec_count and the
-    closing clock pair at exit."""
+_DISABLED = LatRec.__new__(LatRec)
+_DISABLED.enabled = False
+_DISABLED._mm = None
+
+_tls = threading.local()
+
+
+def tls_ring(role: str, entries_log2: int = 18) -> "LatRec":
+    """This thread's ring for ``role``, named ``<role>.<tid>`` as libe3 does.
+
+    The per-thread cache keeps a stamp site off the process-wide ring lock,
+    and the LATREC_DIR check keeps it off everything else when tracing is off.
+    """
+    if _DIR is None:
+        return _DISABLED
+    r = getattr(_tls, "ring", None)
+    if r is None:
+        r = ring(f"{role}.{threading.get_ident()}", entries_log2, role)
+        _tls.ring = r
+    return r
+
+
+def flush_rings() -> None:
+    """Refresh rec_count and the closing clock pair on every open ring.
+
+    Without this a reader sees rec_count == 0 and cannot tell a wrapped ring
+    from a partly filled one, nor fit mono->real across the run. Idempotent,
+    so a shutdown path and the atexit hook can both call it.
+    """
     with _rings_lock:
         for r in _rings.values():
             r.heartbeat()
+
+
+atexit.register(flush_rings)
+
+
+def _heartbeat_loop(interval: float) -> None:
+    while True:
+        time.sleep(interval)
+        flush_rings()
+
+
+def start_heartbeat(interval: float = 1.0) -> None:
+    """Publish rec_count periodically, so a ring survives a SIGKILL with its
+    write count intact. No-op when tracing is off; safe to call more than once.
+    """
+    if _DIR is None or getattr(start_heartbeat, "_started", False):
+        return
+    start_heartbeat._started = True
+    threading.Thread(target=_heartbeat_loop, args=(interval,),
+                     name="latrec-heartbeat", daemon=True).start()
