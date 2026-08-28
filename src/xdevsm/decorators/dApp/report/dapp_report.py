@@ -1,5 +1,4 @@
 import json
-import threading
 
 # osc xappframe
 from ricxappframe.xapp_frame import rmr
@@ -10,7 +9,8 @@ import ricxappframe.xapp_rest as ricrest
 import xdevsm.utils.xapp_sub as subscribe
 from xdevsm.utils.constants import Values
 import xdevsm.utils.utility as utility
-from xdevsm._latrec.writer import ring, ctx_get
+from xdevsm._latrec.writer import tls_ring, ctx_get
+from xdevsm._latrec.stages import LATREC_ROLE as _LATREC_ROLE
 from xdevsm._latrec import stages
 
 
@@ -70,7 +70,7 @@ class DAppReport(xAppReportService):
 
         # DECODE_E2SM_BEGIN: start of B3, the E2SM-DAPP indication decode.
         seq = ctx_get()
-        _lr = ring(f"xdevsm.{threading.get_ident()}")
+        _lr = tls_ring(_LATREC_ROLE)
         _lr.stamp(seq, stages.DECODE_E2SM_BEGIN, aux=len(ba_ind_header) + len(ba_ind_msg))
 
         # Decoding DApp Indication Header

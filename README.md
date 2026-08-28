@@ -369,14 +369,19 @@ xDevSM can record per-stage latency data for the E2AP/E2SM-DAPP legs it owns
 (indication decode, control encode, and the E2AP framing/send around it),
 using **latrec**, the ring-recorder format shared with
 [libe3](https://github.com/wineslab/libe3) and the rest of the E2/E3 stack.
-It is off by default and adds no overhead unless enabled.
+It is off by default.
 
 - **Enable** by setting `LATREC_DIR` to a writable directory before starting
   the xApp process. Each stamping thread writes one `<role>.<tid>.latrec`
   ring file there (role `xdevsm`).
-- **Disable** by leaving `LATREC_DIR` unset — every stamp call becomes a
-  no-op with negligible overhead (see `scripts/latrec_bench.py` for a local
-  measurement of the per-stamp cost on your own hardware).
+- **Size** the rings with `LATREC_ENTRIES_LOG2_XDEVSM` (or the stack-wide
+  `LATREC_ENTRIES_LOG2`), as a power-of-two exponent between 12 and 28;
+  the default is 18, i.e. 256K records ≈ 8 MiB per thread.
+- **Disable** by leaving `LATREC_DIR` unset. Every stamp site then costs a
+  module-level check and a no-op call — tens of nanoseconds, no locks and no
+  allocation, but not literally zero. Run `scripts/latrec_bench.py` to
+  measure both paths on your own hardware; it reports enabled and disabled
+  cost side by side.
 - The writer (`xdevsm._latrec.writer`) is a self-contained, pure-Python
   module with no `xdevsm`-specific dependencies, so it can be reused as-is
   by other pure-Python components that need the same mechanism.

@@ -1,7 +1,6 @@
 import os
 import signal
 import json
-import threading
 import time
 import socket
 import requests
@@ -16,7 +15,8 @@ import ricxappframe.xapp_rest as ricrest
 # utility
 from xdevsm.utils.constants import Values
 from xdevsm.utils.utility import write_routing_table
-from xdevsm._latrec.writer import ring, seq_next, ctx_set
+from xdevsm._latrec.writer import tls_ring, seq_next, ctx_set, flush_rings, start_heartbeat
+from xdevsm._latrec.stages import LATREC_ROLE as _LATREC_ROLE
 from xdevsm._latrec import stages
 
 # xDevSM imports
@@ -31,6 +31,10 @@ class xDevSMRMRXapp(RMRXapp, BasexDevSMXapp):
         super().__init__(default_handler=self._dispatch_event, rmr_port=self.rmr_port, post_init=self._post_init, rmr_wait_for_ready=True)
         
         self.logger.set_level(Level.DEBUG)
+
+        # No-op unless LATREC_DIR is set. Keeps rec_count current so a capture
+        # stays readable even if the pod is killed rather than shut down.
+        start_heartbeat()
 
         self.xapp_name = xapp_name if xapp_name else self._config_data.get("name")
         self.address = address
@@ -129,7 +133,7 @@ class xDevSMRMRXapp(RMRXapp, BasexDevSMXapp):
         # the wire segment, same as an opaque near-RT RIC's own relay hop).
         seq = seq_next()
         ctx_set(seq)
-        ring(f"xdevsm.{threading.get_ident()}").stamp(
+        tls_ring(_LATREC_ROLE).stamp(
             seq, stages.DECODE_E2AP_BEGIN, aux=summary.get(rmr.RMR_MS_PAYLOAD_LEN, 0))
         xapp.logger.info("[xDevSMRMRXapp] dispatching event")
         if self._handler is not None:
@@ -323,6 +327,9 @@ class xDevSMRMRXapp(RMRXapp, BasexDevSMXapp):
     
     def terminate(self, signum, frame):
         self.logger.info("[xDevSMRMRXapp] Received termination signal")
+        # Publish rec_count and the closing clock pair while the interpreter is
+        # still healthy, rather than leaving it to atexit ordering.
+        flush_rings()
         self.stop()
         if self.shutdown is not None:
             self.shutdown()

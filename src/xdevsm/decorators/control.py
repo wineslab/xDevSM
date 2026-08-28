@@ -1,6 +1,5 @@
 import numpy as np
 import ctypes
-import threading
 
 from xdevsm.decorators.base import BaseXDevSMWrapper
 
@@ -14,8 +13,9 @@ import xdevsm.sm_framework.py_oran.rc.RCControlHdr as ctrlhdr
 
 # utility
 from xdevsm.utils.constants import Values
-from xdevsm._latrec.writer import ring, seq_next, ctx_set, ctx_get
+from xdevsm._latrec.writer import tls_ring, seq_next, ctx_set, ctx_get
 from xdevsm._latrec import stages
+from xdevsm._latrec.stages import LATREC_ROLE as _LATREC_ROLE
 
 class xAppControlService(BaseXDevSMWrapper):
     def __init__(self,
@@ -143,7 +143,7 @@ class xAppControlService(BaseXDevSMWrapper):
         # continuation of whatever inbound message (if any) triggered it.
         seq = seq_next()
         ctx_set(seq)
-        _lr = ring(f"xdevsm.{threading.get_ident()}")
+        _lr = tls_ring(_LATREC_ROLE)
         _lr.stamp(seq, stages.ENCODE_E2SM_BEGIN)
 
         self.generate_control_request(ue_id_struct=ue_id_struct, control_action_id=control_action_id)
@@ -165,12 +165,16 @@ class xAppControlService(BaseXDevSMWrapper):
                                         control_message=ctrl_msg_byte_array)
         
 
-    def send_control_request_rmr(self, e2_node_id, control_header: bytes, control_message: bytes, call_process_id: bytes=b"1", requestor_id=1, control_ack_request=1, request_sequence_number=0):
+    def send_control_request_rmr(self, e2_node_id, control_header: bytes, control_message: bytes, call_process_id: bytes=b"1", requestor_id=1, control_ack_request=1, request_sequence_number=0, seq: int = None):
 
-        seq = ctx_get()
-        _lr = ring(f"xdevsm.{threading.get_ident()}")
+        # send() binds the seq it allocated; called directly, start a fresh one
+        # rather than adopting whatever this thread last handled.
+        if seq is None:
+            seq = ctx_get() or seq_next()
+        _lr = tls_ring(_LATREC_ROLE)
         # ENCODE_E2AP_BEGIN: start of B6, the E2AP framing of the control request.
-        _lr.stamp(seq, stages.ENCODE_E2AP_BEGIN)
+        _lr.stamp(seq, stages.ENCODE_E2AP_BEGIN,
+                  aux=len(control_header) + len(control_message))
         rc_ctrl_rec_msg = ControlRequestMsg()
         size, payload = rc_ctrl_rec_msg.encode(call_process_id=call_process_id,
                                                requestor_id=requestor_id,
