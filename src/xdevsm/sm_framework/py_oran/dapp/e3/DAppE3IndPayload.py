@@ -5,9 +5,15 @@ from xdevsm.sm_framework.py_oran.ByteArray import ByteArray
 from xdevsm.sm_framework.lib.library_wrapper import dApp_lib, wrap_functions
 
 class spectrum_sm_report_t(ctypes.Structure):
+    # Mirrors spectrum_sm_report_t in FlexRIC's
+    # src/sm/dapp_sm/e3/service_models/spectrum_sm/ir/spectrum_report.h. Field
+    # ORDER and TYPES must match the libdapp_sm.so shipped beside this file --
+    # ctypes reads by offset and will not complain about a mismatch, it will just
+    # return the wrong number.
     _fields_ = [
         ("prb_count", ctypes.c_long),
         ("prbs", ctypes.POINTER(ctypes.c_uint16)),
+        ("timestamp_ns", ctypes.c_int64),
     ]
 
 class DAppE3IndPayload(ctypes.Structure):
@@ -61,6 +67,29 @@ class DAppE3IndPayloadWrapper():
             prbs.append(prbs_ptr[i])
         return prbs
     
+    def get_timestamp_ns(self):
+        """Producer timestamp of the spectrum report, in CLOCK_REALTIME nanoseconds.
+
+        Stamped by the dApp as it encodes the report and relayed by the gNB without
+        being decoded, so it survives to the xApp unchanged. Realtime rather than
+        monotonic because the two ends are on different hosts -- which also means a
+        difference against the receiver's own clock carries their NTP skew and is a
+        hop estimate, not an exact transit.
+
+        Do not difference it against the monotonic timestamps the RAN puts on its own
+        indications (Spectrum-SensingIndication, L1KPMIndication): those cannot leave
+        the host and are on a different clock entirely.
+
+        Returns None when the payload is absent, is not a spectrum report, or carries
+        no stamp (0 is the "not set" value on the wire).
+        """
+        if self.dapp_e3_ind_payload is None:
+            return None
+        if self.dapp_e3_ind_payload.type.value != dapp_e3_sm_type_e.DAPP_E3_SM_SPECTRUM:
+            return None
+        ts = int(self.dapp_e3_ind_payload.u.spectrum.timestamp_ns)
+        return ts if ts else None
+
     def __del__(self):
         if self.dapp_e3_ind_payload is not None:
             self.free_ind_payload(self.dapp_e3_ind_payload)

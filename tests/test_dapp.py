@@ -32,3 +32,29 @@ def test_dapp_modules_bind_native_symbols():
         DAppEvTriggerWrapper,
     ):
         assert isinstance(cls, type)
+
+
+@requires_native
+def test_spectrum_report_struct_matches_the_shipped_library():
+    """The ctypes mirror must match libdapp_sm.so's spectrum_sm_report_t.
+
+    ctypes reads struct members by offset and validates nothing, so a layout that
+    drifts from the shipped .so returns plausible garbage instead of failing. Pin
+    the offsets that the C side fixes: long, pointer, int64 on LP64.
+    """
+    import ctypes
+    from xdevsm.sm_framework.py_oran.dapp.e3.DAppE3IndPayload import spectrum_sm_report_t
+
+    assert [f[0] for f in spectrum_sm_report_t._fields_] == [
+        "prb_count", "prbs", "timestamp_ns"]
+    assert spectrum_sm_report_t.prb_count.offset == 0
+    assert spectrum_sm_report_t.prbs.offset == 8
+    assert spectrum_sm_report_t.timestamp_ns.offset == 16
+    assert ctypes.sizeof(spectrum_sm_report_t) == 24
+
+
+@requires_native
+def test_e3_ind_payload_exposes_the_report_timestamp():
+    from xdevsm.sm_framework.py_oran.dapp.e3.DAppE3IndPayload import DAppE3IndPayloadWrapper
+
+    assert callable(getattr(DAppE3IndPayloadWrapper, "get_timestamp_ns", None))

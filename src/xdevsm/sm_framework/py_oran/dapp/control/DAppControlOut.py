@@ -4,8 +4,16 @@ from xdevsm.sm_framework.py_oran.dapp.enums import *
 from xdevsm.sm_framework.py_oran.ByteArray import ByteArray
 from xdevsm.sm_framework.lib.library_wrapper import dApp_lib, wrap_functions
 
+# Mirrors e2sm_dapp_ctrl_out_frmt_1_t in FlexRIC's
+# src/sm/dapp_sm/ie/ir/e2sm_dapp_ctrl_out_frmt_1.h. Field ORDER and TYPES must
+# match the libdapp_sm.so shipped beside this file -- dapp_dec_ctrl_out_asn
+# returns this struct by value, so an empty mirror here does not just miss
+# both fields, it misreads the whole return.
 class e2sm_dapp_ctrl_out_frmt_1_t(ctypes.Structure):
-    _fields_ = []
+    _fields_ = [
+        ("timestamp_ns", ctypes.c_int64),
+        ("origin_seq", ctypes.c_int64),
+    ]
 
 
 class DAppControlOut(ctypes.Structure):

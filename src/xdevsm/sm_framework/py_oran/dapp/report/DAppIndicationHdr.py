@@ -4,6 +4,12 @@ from xdevsm.sm_framework.py_oran.dapp.enums import *
 from xdevsm.sm_framework.py_oran.ByteArray import ByteArray
 from xdevsm.sm_framework.lib.library_wrapper import dApp_lib, wrap_functions
 
+# Mirrors e2sm_dapp_ind_hdr_frmt_1_t in FlexRIC's
+# src/sm/dapp_sm/ie/ir/e2sm_dapp_ind_hdr_frmt_1.h. Field ORDER and TYPES must
+# match the libdapp_sm.so shipped beside this file -- dapp_dec_ind_hdr_asn
+# returns this struct by value, so ctypes needs the exact size to interpret
+# the return correctly; a short mirror does not just miss trailing fields, it
+# misreads the whole return.
 class e2sm_dapp_ind_hdr_frmt_1_t(ctypes.Structure):
     _fields_ = [
         ("ran_function_id", ctypes.c_uint32),
@@ -13,9 +19,12 @@ class e2sm_dapp_ind_hdr_frmt_1_t(ctypes.Structure):
         ("node_nb_id", ctypes.c_uint32),
         ("node_cu_du_id_present", ctypes.c_bool),
         ("node_cu_du_id", ctypes.c_uint64),
+        ("timestamp_ns", ctypes.c_int64),
+        ("origin_seq", ctypes.c_int64),
     ]
 
 
+# Mirrors e2sm_dapp_ind_hdr_frmt_2_t; see the frmt_1 note above.
 class e2sm_dapp_ind_hdr_frmt_2_t(ctypes.Structure):
     _fields_ = [
         ("node_type", ctypes.c_uint8),
@@ -23,6 +32,8 @@ class e2sm_dapp_ind_hdr_frmt_2_t(ctypes.Structure):
         ("node_nb_id", ctypes.c_uint32),
         ("node_cu_du_id_present", ctypes.c_bool),
         ("node_cu_du_id", ctypes.c_uint64),
+        ("timestamp_ns", ctypes.c_int64),
+        ("origin_seq", ctypes.c_int64),
     ]
 
 class DAppIndHdr(ctypes.Structure):

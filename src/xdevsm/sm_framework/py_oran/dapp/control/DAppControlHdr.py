@@ -6,10 +6,15 @@ from xdevsm.sm_framework.lib.library_wrapper import dApp_lib, wrap_functions
 
 
 
+# Mirrors e2sm_dapp_ctrl_hdr_frmt_1_t in FlexRIC's
+# src/sm/dapp_sm/ie/ir/e2sm_dapp_ctrl_hdr_frmt_1.h. Field ORDER and TYPES must
+# match the libdapp_sm.so shipped beside this file.
 class e2sm_dapp_ctrl_hdr_frmt_1_t(ctypes.Structure):
     _fields_ = [
         ("ran_function_id", ctypes.c_uint32),
         ("dapp_id", ctypes.c_uint32),
+        ("timestamp_ns", ctypes.c_int64),
+        ("origin_seq", ctypes.c_int64),
     ]
 
 class DAppControlHdr(ctypes.Structure):
