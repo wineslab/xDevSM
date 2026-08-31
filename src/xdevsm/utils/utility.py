@@ -12,13 +12,23 @@ def read_file(filename):
         return None
 
 def get_c_byte_array_from_py_byte_string(byte_string: bytes):
-    try:
-        byte_data = bytes(byte_string.decode('unicode_escape').encode('latin-1'))
-        byte_array = (ctypes.c_uint8 * len(byte_data)).from_buffer_copy(byte_data)
+    """
+    Copies a Python bytes object into a ctypes uint8 array for the SM decoders.
 
-        return byte_array
-    except:
-        print("exception in byte array")
+    The payload is copied verbatim. It must not be run through
+    decode('unicode_escape'): that treats an 0x5C octet as the start of an escape
+    sequence, so APER-encoded bytes containing 0x5C are silently collapsed
+    (e.g. 5c 6e -> 0a) and the shortened buffer makes the C decoder abort on
+    `assert(ret.code == RC_OK)`.
+    """
+    if byte_string is None:
+        return None
+    try:
+        if isinstance(byte_string, str):
+            byte_string = byte_string.encode('latin-1')
+        return (ctypes.c_uint8 * len(byte_string)).from_buffer_copy(byte_string)
+    except (TypeError, ValueError, UnicodeEncodeError) as error:
+        print("exception in byte array: {}".format(error))
         return None
 
 def extract_config_fields(config_file_path) -> tuple:
