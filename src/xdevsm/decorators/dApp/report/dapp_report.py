@@ -50,12 +50,14 @@ class DAppReport(xAppReportService):
     
     
     def handle(self, xapp, summary, sbuf):
-        xapp.logger.info("[DAppReport] received: {}".format(summary))
+        # Guarded: this formats the whole RMR summary, payload included, and runs
+        # for every message on the dispatch thread.
+        if utility.debug_enabled(xapp.logger):
+            xapp.logger.debug("[DAppReport] received: {}".format(summary))
         if summary[rmr.RMR_MS_MSG_TYPE] == Values.RIC_INDICATION:
-            xapp.logger.info("[DAppReport] Handling DApp Report Request message")
             self._handle_indication(xapp, summary)
         elif summary[rmr.RMR_MS_MSG_TYPE] == Values.RIC_ERROR_INDICATION:
-            xapp.logger.info("[DAppReport] Error in Indication message")
+            xapp.logger.error("[DAppReport] Error in Indication message")
         self._xapp_handler.handle(xapp, summary, sbuf)
     
     
@@ -63,9 +65,9 @@ class DAppReport(xAppReportService):
         """
         decode DApp Report indication message
         """
-        self.logger.info("[DAppReport] E2AP Decoded function id: {}".format(function_id))
+        self.logger.debug("[DAppReport] E2AP Decoded function id: {}".format(function_id))
         if function_id != self.function_id:
-            self.logger.info("[DAppReport] received indication for different function id: {}".format(function_id))
+            self.logger.debug("[DAppReport] received indication for different function id: {}".format(function_id))
             return
 
         # DECODE_E2SM_BEGIN: start of B3, the E2SM-DAPP indication decode.

@@ -135,7 +135,7 @@ class xDevSMRMRXapp(RMRXapp, BasexDevSMXapp):
         ctx_set(seq)
         tls_ring(_LATREC_ROLE).stamp(
             seq, stages.DECODE_E2AP_BEGIN, aux=summary.get(rmr.RMR_MS_PAYLOAD_LEN, 0))
-        xapp.logger.info("[xDevSMRMRXapp] dispatching event")
+        xapp.logger.debug("[xDevSMRMRXapp] dispatching event")
         if self._handler is not None:
             self._handler(xapp, summary, sbuf)
         else:        

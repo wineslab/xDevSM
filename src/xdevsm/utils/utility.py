@@ -1,6 +1,22 @@
 import ctypes
 import json
 
+from mdclogpy import Level
+
+
+def debug_enabled(logger):
+    """True when `logger` would actually emit a debug line.
+
+    mdclogpy filters by level inside log(), so a call site that formats its
+    message inline pays for building the string even when it is then discarded.
+    On the RMR dispatch path that is per-indication work on the one thread that
+    handles every indication, so the hot call sites check this first.
+    """
+    get_level = getattr(logger, "get_level", None)
+    if get_level is None:
+        return True
+    return get_level() <= Level.DEBUG
+
 def read_file(filename):
     try:
         with open(filename, 'r') as f:

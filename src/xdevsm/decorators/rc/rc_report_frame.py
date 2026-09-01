@@ -17,6 +17,7 @@ from xdevsm.decorators.report import xAppReportService
 from ricxappframe.xapp_frame import rmr
 
 from xdevsm.utils.constants import Values
+import xdevsm.utils.utility as utility
 
 from xdevsm.sm_framework.py_oran.rc.rc_report_codec import (
     RC_REPORT_STYLE_MESSAGE_COPY,
@@ -36,7 +37,8 @@ class XappRcReportFrame(xAppReportService):
 
     # -- indication path -----------------------------------------------------
     def handle(self, xapp, summary, sbuf):
-        xapp.logger.debug("[XappRcReportFrame] received: {}".format(summary))
+        if utility.debug_enabled(xapp.logger):
+            xapp.logger.debug("[XappRcReportFrame] received: {}".format(summary))
         if summary[rmr.RMR_MS_MSG_TYPE] == Values.RIC_INDICATION:
             self._handle_indication(xapp, summary)
         elif summary[rmr.RMR_MS_MSG_TYPE] == Values.RIC_ERROR_INDICATION:

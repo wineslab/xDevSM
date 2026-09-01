@@ -5,6 +5,7 @@ from ricxappframe.xapp_frame import rmr
 from xdevsm.decorators.report import xAppReportService
 
 from xdevsm.utils.constants import Values
+import xdevsm.utils.utility as utility
 
 from xdevsm.sm_framework.py_oran.ccc.constants import (
     SM_CCC_ID,
@@ -52,7 +53,8 @@ class XappCccFrame(xAppReportService):
     # ------------------------------------------------------------------
 
     def handle(self, xapp, summary, sbuf):
-        xapp.logger.debug("[XappCccFrame] received: {}".format(summary))
+        if utility.debug_enabled(xapp.logger):
+            xapp.logger.debug("[XappCccFrame] received: {}".format(summary))
         if summary[rmr.RMR_MS_MSG_TYPE] == Values.RIC_INDICATION:
             self._handle_indication(xapp, summary)
         elif summary[rmr.RMR_MS_MSG_TYPE] == Values.RIC_ERROR_INDICATION:
@@ -64,9 +66,9 @@ class XappCccFrame(xAppReportService):
         self._xapp_handler.handle(xapp, summary, sbuf)
 
     def decode_message(self, function_id, ba_ind_header, ba_ind_msg, meid, sub_id):
-        self.logger.info("[XappCccFrame] E2AP function id: {}".format(function_id))
+        self.logger.debug("[XappCccFrame] E2AP function id: {}".format(function_id))
         if function_id != self.function_id:
-            self.logger.info(
+            self.logger.debug(
                 "[XappCccFrame] indication for different function id: {}".format(function_id)
             )
             return

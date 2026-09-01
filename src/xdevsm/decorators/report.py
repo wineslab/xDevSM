@@ -1,6 +1,7 @@
 from abc import abstractmethod
 from typing import Tuple
 import json
+import threading
 
 # osc frame
 from ricxappframe.xapp_frame import rmr
@@ -20,6 +21,11 @@ from xdevsm._latrec import stages
 from xdevsm.decorators.base import BaseXDevSMWrapper
 
 from xdevsm.sm_framework.py_oran.ByteArray import ByteArray
+
+
+# One decoded E2AP indication, cached for the length of one trip down the
+# decorator chain. See _decode_e2ap_once.
+_decoded = threading.local()
 
 
 class xAppReportService(BaseXDevSMWrapper):
@@ -62,28 +68,64 @@ class xAppReportService(BaseXDevSMWrapper):
         # time so the async resolver can route back to the originating gNB.
         self._pending_resolutions = {}
     
-    def _handle_indication(self, xapp, summary):
+    @staticmethod
+    def _decode_e2ap_once(xapp, summary):
+        """Decode the E2AP indication once per RMR message.
+
+        Frames are stacked as a decorator chain and every one of them calls this
+        for every RIC_INDICATION, discarding the result unless the function id is
+        its own. Decoding per frame therefore multiplied the ASN.1 work (and the
+        two ctypes buffer copies) by the length of the chain -- four times over
+        for a chain of RC, CCC, dApp and KPM, three of them thrown away -- on the
+        single thread that ricxappframe dispatches indications from.
+
+        The result is cached against the identity of the payload object. The
+        chain runs synchronously on one thread and passes the same `summary` dict
+        to every frame, so `summary[RMR_MS_PAYLOAD]` is the same object at each
+        hop; caching in a thread-local rather than in `summary` itself keeps it
+        out of the dicts that callers log, and out of `summary`'s lifetime.
+
+        Returns (function_id, ba_ind_header, ba_ind_msg), with the byte arrays
+        None if the payload could not be converted.
         """
-        Base handler for DApp Reports.
-        """
+        payload = summary[rmr.RMR_MS_PAYLOAD]
+        cached = getattr(_decoded, "entry", None)
+        if cached is not None and cached[0] is payload:
+            return cached[1]
+
         indm = IndicationMsg()
 
         # decoding E2AP
-        indm.decode(summary[rmr.RMR_MS_PAYLOAD])
+        indm.decode(payload)
         # DECODE_E2AP_DONE: aux2 = RMR message type, the closest stand-in
         # available here for the shared catalog's "PDU type" convention.
         tls_ring(_LATREC_ROLE).stamp(
             ctx_get(), stages.DECODE_E2AP_DONE, aux2=summary[rmr.RMR_MS_MSG_TYPE])
-        xapp.logger.info("[xAppReportService] E2AP Decoded function id: {}".format(indm.function_id))
+        xapp.logger.debug("[xAppReportService] E2AP Decoded function id: {}".format(indm.function_id))
 
-        ba_ind_header = utility.get_c_byte_array_from_py_byte_string(indm.indication_header)
-        ba_ind_msg = utility.get_c_byte_array_from_py_byte_string(indm.indication_message)
+        result = (indm.function_id,
+                  utility.get_c_byte_array_from_py_byte_string(indm.indication_header),
+                  utility.get_c_byte_array_from_py_byte_string(indm.indication_message))
+        _decoded.entry = (payload, result)
+        return result
+
+    def _handle_indication(self, xapp, summary):
+        """
+        Base handler for DApp Reports.
+        """
+        function_id, ba_ind_header, ba_ind_msg = self._decode_e2ap_once(xapp, summary)
+
+        # Not this frame's service model: nothing further to do. Checked here
+        # rather than inside decode_message so that a frame the indication is not
+        # addressed to does no E2SM work at all.
+        if function_id != self.function_id:
+            return
 
         if ba_ind_header is None or ba_ind_msg is None:
             xapp.logger.error("[xAppReportService] Indication header or message byte array is None, skipping processing")
             return
 
-        self.decode_message(indm.function_id, ba_ind_header, ba_ind_msg, summary['meid'], summary[rmr.RMR_MS_SUB_ID])
+        self.decode_message(function_id, ba_ind_header, ba_ind_msg, summary['meid'], summary[rmr.RMR_MS_SUB_ID])
     
     
     def get_ran_function_description(self, json_ran_info):

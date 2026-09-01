@@ -44,7 +44,8 @@ class XappKpmFrame(xAppReportService):
         self.function_id = 2  # KPM function ID
 
     def handle(self, xapp, summary, sbuf):
-        xapp.logger.debug("[XappKpmFrame] received: {}".format(summary))
+        if utility.debug_enabled(xapp.logger):
+            xapp.logger.debug("[XappKpmFrame] received: {}".format(summary))
         if summary[rmr.RMR_MS_MSG_TYPE] == Values.RIC_INDICATION:
             self._handle_indication(xapp, summary)
         elif summary[rmr.RMR_MS_MSG_TYPE] == Values.RIC_ERROR_INDICATION:
@@ -58,9 +59,9 @@ class XappKpmFrame(xAppReportService):
     def decode_message(self, function_id, ba_ind_header, ba_ind_msg, meid, sub_id):
 
         # Indication hdr - decoding E2SM
-        self.logger.info("[XappKpmFrame] E2AP Decoded function id: {}".format(function_id))
+        self.logger.debug("[XappKpmFrame] E2AP Decoded function id: {}".format(function_id))
         if function_id != self.function_id:
-            self.logger.info("[XappKpmFrame] received indication for different function id: {}".format(function_id))
+            self.logger.debug("[XappKpmFrame] received indication for different function id: {}".format(function_id))
             return
         
         ind_hdr_mgr = KpmIndicationHdr.KpmIndHdrWrapper(ba_ind_header)
@@ -73,7 +74,7 @@ class XappKpmFrame(xAppReportService):
         # Indication msg - decoding E2SM
         ind_msg_mgr = KpmIndicationMsg.KpmIndMsgWrapper(ba_ind_msg)
         decoded_ind_msg = ind_msg_mgr.decode()
-        self.logger.info("[XappKpmFrame] Indication message decoded successfully")
+        self.logger.debug("[XappKpmFrame] Indication message decoded successfully")
 
         ind_msg_callback = self.get_indication_msg_callback()
         if ind_msg_callback is None:
