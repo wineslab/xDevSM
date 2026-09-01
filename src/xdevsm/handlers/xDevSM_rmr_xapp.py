@@ -5,7 +5,6 @@ import time
 import socket
 import requests
 
-from mdclogpy import Level
 
 # osc xappframe
 from ricxappframe.xapp_frame import RMRXapp, rmr
@@ -15,6 +14,7 @@ import ricxappframe.xapp_rest as ricrest
 # utility
 from xdevsm.utils.constants import Values
 from xdevsm.utils.utility import write_routing_table
+from xdevsm.utils.log_config import apply_to_logger, close_log_file
 from xdevsm._latrec.writer import tls_ring, seq_next, ctx_set, flush_rings, start_heartbeat
 from xdevsm._latrec.stages import LATREC_ROLE as _LATREC_ROLE
 from xdevsm._latrec import stages
@@ -30,7 +30,12 @@ class xDevSMRMRXapp(RMRXapp, BasexDevSMXapp):
         self._t0 = time.time()
         super().__init__(default_handler=self._dispatch_event, rmr_port=self.rmr_port, post_init=self._post_init, rmr_wait_for_ready=True)
         
-        self.logger.set_level(Level.DEBUG)
+        # Configure logging from the descriptor before anything else logs:
+        # super().__init__() has already loaded _config_data, and everything
+        # below (routing table, HTTP server, subscriptions) logs on the way up.
+        # Forcing a level here instead would make controls.log_level unable to
+        # reach the noisiest part of the run.
+        apply_to_logger(self.logger, self.get_controls())
 
         # No-op unless LATREC_DIR is set. Keeps rec_count current so a capture
         # stays readable even if the pod is killed rather than shut down.
@@ -330,6 +335,7 @@ class xDevSMRMRXapp(RMRXapp, BasexDevSMXapp):
         # Publish rec_count and the closing clock pair while the interpreter is
         # still healthy, rather than leaving it to atexit ordering.
         flush_rings()
+        close_log_file(self.logger)
         self.stop()
         if self.shutdown is not None:
             self.shutdown()

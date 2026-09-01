@@ -389,7 +389,44 @@ It is off by default.
   `tools/latrec2csv.py`); the stage identifiers this package stamps mirror
   `libe3/include/libe3/latrec.h` (see `xdevsm/_latrec/stages.py`).
 
-## 13. Other Sources
+## 13. Logging
+
+The framework configures the xApp's logger from the `controls` block of the xApp
+descriptor (the JSON at `CONFIG_FILE`), so verbosity and destination are set
+externally rather than in code. Each key can be overridden by an environment
+variable, which lets a Deployment change them without rebuilding the image.
+
+| `controls` key | Env override | Values | Default |
+| -------------- | ------------ | ------ | ------- |
+| `log_level`  | `LOG_LEVEL`  | `DEBUG`, `INFO`, `WARNING`, `ERROR` | `INFO` |
+| `log_stdout` | `LOG_STDOUT` | boolean | `true` |
+| `log_file`   | `LOG_FILE`   | path; empty means no file | unset |
+
+```json
+{
+  "controls": {
+    "log_level": "ERROR",
+    "log_stdout": false,
+    "log_file": "/tmp/xapp.log"
+  }
+}
+```
+
+- Precedence is **environment → `controls` → default**. An unrecognised level
+  falls back to `INFO` rather than raising, so a typo in a descriptor cannot
+  stop an xApp from starting.
+- `ERROR` is the quietest setting available — `mdclogpy`'s severity enum has no
+  `OFF`.
+- Settings are applied in `xDevSMRMRXapp.__init__` before the routing table,
+  HTTP server and subscriptions are set up, so `log_level` governs the startup
+  logs too.
+- With `log_stdout` false, the container writes nothing to stdout, so
+  `kubectl logs` is empty and `log_file` becomes the only record — point it at a
+  mounted volume if it needs to outlive the pod.
+- The logger is shared with `ricxappframe`, so these settings cover its output
+  as well as this framework's.
+
+## 14. Other Sources
 
 A detailed step-by-step tutorial for setting up a deployment to begin working with xDevSM is available [here](https://openrangym.com/tutorials/xdevsm-tutorial).
 
