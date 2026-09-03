@@ -1,4 +1,5 @@
 import ctypes
+import time
 from xdevsm.sm_framework.py_oran.dapp.enums import *
 
 from xdevsm.sm_framework.py_oran.ByteArray import ByteArray
@@ -9,6 +10,7 @@ class spectrum_sm_control_t(ctypes.Structure):
     _fields_ = [
         ("prb_count", ctypes.c_long),
         ("blockedPRBs", ctypes.POINTER(ctypes.c_uint16)),
+        ("timestamp_ns", ctypes.c_int64),
     ]
 
 class DAppE3CtrlPayload(ctypes.Structure):
@@ -32,7 +34,8 @@ class DAppE3CtrlPayloadWrapper():
     def set_spectrum_control(self, blocked_prbs: list):
         self.dapp_e3_ctrl_payload.u.spectrum = spectrum_sm_control_t()
         self.dapp_e3_ctrl_payload.u.spectrum.prb_count = len(blocked_prbs)
-        if blocked_prbs == 0 :
+        self.dapp_e3_ctrl_payload.u.spectrum.timestamp_ns = time.time_ns()
+        if len(blocked_prbs) == 0:
             return
         blocked_prbs_array_type = ctypes.c_uint16 * len(blocked_prbs)
         self._blocked_prbs_array = blocked_prbs_array_type()

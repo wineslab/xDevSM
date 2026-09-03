@@ -54,6 +54,35 @@ def test_spectrum_report_struct_matches_the_shipped_library():
 
 
 @requires_native
+def test_spectrum_control_struct_matches_the_shipped_library():
+    """The control ctypes mirror must include FlexRIC's producer timestamp."""
+    import ctypes
+    from xdevsm.sm_framework.py_oran.dapp.e3.DAppE3CtrlPayload import (
+        spectrum_sm_control_t,
+    )
+
+    assert [f[0] for f in spectrum_sm_control_t._fields_] == [
+        "prb_count", "blockedPRBs", "timestamp_ns"]
+    assert spectrum_sm_control_t.prb_count.offset == 0
+    assert spectrum_sm_control_t.blockedPRBs.offset == 8
+    assert spectrum_sm_control_t.timestamp_ns.offset == 16
+    assert ctypes.sizeof(spectrum_sm_control_t) == 24
+
+
+@requires_native
+def test_spectrum_control_is_timestamped_and_empty_list_is_valid():
+    from xdevsm.sm_framework.py_oran.dapp.e3.DAppE3CtrlPayload import (
+        DAppE3CtrlPayloadWrapper,
+    )
+
+    wrapper = DAppE3CtrlPayloadWrapper(dapp_e3_sm_type_e.DAPP_E3_SM_SPECTRUM)
+    wrapper.set_spectrum_control([])
+    control = wrapper.dapp_e3_ctrl_payload.u.spectrum
+    assert control.prb_count == 0
+    assert control.timestamp_ns > 0
+
+
+@requires_native
 def test_e3_ind_payload_exposes_the_report_timestamp():
     from xdevsm.sm_framework.py_oran.dapp.e3.DAppE3IndPayload import DAppE3IndPayloadWrapper
 
