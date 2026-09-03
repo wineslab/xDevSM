@@ -12,6 +12,7 @@ import xdevsm.sm_framework.py_oran.rc.RCControlReq as ctrlReq
 import xdevsm.sm_framework.py_oran.rc.RCControlHdr as ctrlhdr
 
 # utility
+from xdevsm.sm_framework.py_oran.dapp.control.DAppControlAck import decode_control_ack
 from xdevsm.utils.constants import Values
 from xdevsm._latrec.writer import tls_ring, seq_next, ctx_set, ctx_get
 from xdevsm._latrec import stages
@@ -228,14 +229,15 @@ class xAppControlService(BaseXDevSMWrapper):
     
     def _handle_control_ack_suc(self, xapp, summary, sbuf):
         self.logger.info("[xAppControlService] Handling control ack - default implementation")
-        # The E2SM outcome inside the acknowledge is still out of reach here:
-        # ricxappframe ships no control-acknowledge decoder, and the one FlexRIC
-        # could export cannot live in libdapp_sm.so (two asn1c header trees
-        # cannot share a translation unit). Until a separate E2AP decode library
-        # exists, the handler gets the RMR summary and can correlate only by
-        # arrival, not by the procedure's sequence id.
-        if self.__control_ack_handler_suc:
-            self.__control_ack_handler_suc(summary)
+        if not self.__control_ack_handler_suc:
+            return
+        # The callback gets the decoded acknowledge, which names the procedure it
+        # answers and carries the Service Model's apply outcome. A PDU that does
+        # not decode falls back to the raw RMR summary, so a handler written
+        # before this existed keeps working; check `is not None` rather than
+        # assuming a type.
+        ack = decode_control_ack(summary.get(rmr.RMR_MS_PAYLOAD))
+        self.__control_ack_handler_suc(ack if ack is not None else summary)
 
     def _handle_control_ack_fail(self, xapp, summary, sbuf):
         self.logger.info("[xAppControlService] Handling control failure ack - default implementation")
