@@ -98,7 +98,7 @@ Base class implementing the RMR communication layer. It provides generic `send()
 
 | Method                           | Description                                                                       |
 | -------------------------------- | --------------------------------------------------------------------------------- |
-| `handle(xapp, summary, sbuf)`                       | Method called by the `ricxappframe`. Entry point for processing received messages (`Indication` and `RIC CONTROL ` Messages`). Should be overridden by subclasses. |
+| `handle(xapp, summary, sbuf)`                       | Method called by the `ricxappframe`. Entry point for processing received messages (`Indication` and `RIC CONTROL ` Messages`). Should be overridden by subclasses. Must **not** free `sbuf` — see [inbound buffer ownership](#inbound-buffer-ownership). |
 | `send(self, *args, **kwargs)`  | Sends a message via RMR after encoding. Input depends on the underlying E2SM.                                           |
 | `terminate()`                    | Gracefully stops the xApp.                                 |
 | `get_ran_function_description(json_ran_info)` | Uses the `sm_framework` to decode the RAN function description depending on the SM.                    |
@@ -117,8 +117,29 @@ Extends `BasexDevSMXapp` to provide additional functionality specific to the xDe
 | `register_handler(handler)` | Registers callback handlers.                        |
 | `register_shutdown(handler)`          | Registers a shutdown handler for cleanup tasks.                                |
 | `get_ran_info()`                      | Returns E2 node-related encoded information. |
+| `rmr_free(sbuf)`                      | Frees an RMR message buffer. Overrides `ricxappframe`'s so that freeing the message currently being dispatched is idempotent — see below. |
 
 This class is used as the base class for wrapper components.
+
+### Inbound buffer ownership
+
+`ricxappframe` allocates a fresh 4 KiB C buffer for every message it receives and
+transfers ownership to the caller; it never frees it. **xDevSM owns that buffer**:
+`xDevSMRMRXapp` releases it once the handler chain has returned, whether the chain
+returned normally or raised.
+
+What this means when writing a handler:
+
+- **Do not free `sbuf`.** It is released for you. Handlers written against xDevSM ≤ 0.1.3
+  that call `xapp.rmr_free(sbuf)` keep working — `rmr_free` makes the first release of
+  the in-flight buffer win and the framework's own a no-op — but new code should not.
+  Freeing the *same* buffer twice is still a double free, as it always was.
+- **`rmr_rts` before returning is fine.** Returning to sender does not free the buffer,
+  and the release happens after your handler returns.
+- **Do not retain `sbuf` past `handle()`.** It is invalid once the chain returns. The
+  decoded payload is already in `summary` as Python objects, which are safe to keep.
+- Buffers you allocate yourself are yours to free; `rmr_free` passes those straight
+  through.
 
 ---
 

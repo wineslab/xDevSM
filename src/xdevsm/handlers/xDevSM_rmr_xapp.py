@@ -3,6 +3,8 @@ import signal
 import json
 import time
 import socket
+import ctypes
+import threading
 import requests
 
 
@@ -21,6 +23,32 @@ from xdevsm._latrec import stages
 
 # xDevSM imports
 from xdevsm.handlers.I_xDevSM_xapp import BasexDevSMXapp
+
+# The inbound RMR buffer this thread is currently dispatching. ricxappframe's
+# receive loop allocates a fresh 4 KiB C buffer per message
+# (rmr.helpers.rmr_rcvall_msgs_raw) and transfers ownership to the caller;
+# neither RmrLoop nor RMRXapp.run ever frees it. _dispatch_event takes that
+# ownership: it parks the buffer here for the duration of the handler call and
+# releases it in a finally.
+#
+# Thread-local because rmr_free is also reached from threads that never
+# dispatch -- _BaseXapp.rmr_send frees its own send buffer through it, and that
+# runs from HTTP handlers, subscription callbacks and user timer threads. Those
+# must never observe, or clear, the dispatch thread's token.
+_inflight = threading.local()
+
+
+def _addr(sbuf):
+    """Address of an RMR mbuf, for identity comparison.
+
+    ctypes hands back a fresh pointer object on every access and does not define
+    value equality for pointers, so `is` / `==` compare the wrappers rather than
+    the buffer they point at.
+    """
+    if sbuf is None:
+        return None
+    return ctypes.cast(sbuf, ctypes.c_void_p).value
+
 
 class xDevSMRMRXapp(RMRXapp, BasexDevSMXapp):
     def __init__(self, address, xapp_name=None, entrypoint=None, route_file=None):
@@ -141,10 +169,62 @@ class xDevSMRMRXapp(RMRXapp, BasexDevSMXapp):
         tls_ring(_LATREC_ROLE).stamp(
             seq, stages.DECODE_E2AP_BEGIN, aux=summary.get(rmr.RMR_MS_PAYLOAD_LEN, 0))
         xapp.logger.debug("[xDevSMRMRXapp] dispatching event")
-        if self._handler is not None:
-            self._handler(xapp, summary, sbuf)
-        else:        
-            self.handle(xapp, summary, sbuf)
+        # xDevSM owns the inbound buffer from here: it is released in the finally
+        # below, whether the chain returns or raises. Handlers no longer need to
+        # free it (rmr_free tolerates it if they do -- see there).
+        # Saved and restored rather than just set: nested dispatch is not
+        # expected, but a handler that pumped the queue itself would otherwise
+        # clobber the outer message's token and leak it.
+        previous = getattr(_inflight, "sbuf", None)
+        _inflight.sbuf = sbuf
+        try:
+            if self._handler is not None:
+                self._handler(xapp, summary, sbuf)
+            else:
+                self.handle(xapp, summary, sbuf)
+        finally:
+            try:
+                self._release_inflight()
+            finally:
+                _inflight.sbuf = previous
+
+    def _release_inflight(self):
+        """Free this thread's in-flight inbound buffer, at most once."""
+        sbuf = getattr(_inflight, "sbuf", None)
+        if sbuf is None:
+            return
+        # Clear the token BEFORE freeing, not after. rmr_free_msg returns the
+        # address to the allocator and the very next rmr_alloc_msg on this thread
+        # can be handed the same address straight back; a token still holding
+        # that address would then match the new buffer's free and swallow it,
+        # trading one leak for another.
+        _inflight.sbuf = None
+        rmr.rmr_free_msg(sbuf)
+
+    def rmr_free(self, sbuf):
+        """Free an RMR message buffer.
+
+        Overrides _BaseXapp.rmr_free so that freeing *the inbound buffer this
+        thread is currently dispatching* is idempotent. _dispatch_event owns that
+        buffer and releases it in a finally, so handlers no longer need to -- but
+        handlers written against earlier xDevSM releases do, and they were right
+        to: this class's own `handle` used to be the only release on the default
+        path, and out-of-tree xApps copied that pattern. Without this guard,
+        upgrading would turn those into a double free of a C allocation, which
+        aborts the process rather than raising. First free wins.
+
+        Any other buffer -- an outbound one the caller allocated, including the
+        one _BaseXapp.rmr_send frees internally -- is passed straight through.
+        """
+        inflight = getattr(_inflight, "sbuf", None)
+        # Identity first: the decorator chain passes the same pointer object all
+        # the way down, so this hits without paying for a ctypes.cast (~1.3us,
+        # on the per-indication path). The address compare is the fallback for a
+        # handler that reconstructed a pointer to the same buffer.
+        if inflight is not None and (sbuf is inflight or _addr(sbuf) == _addr(inflight)):
+            self._release_inflight()
+            return
+        rmr.rmr_free_msg(sbuf)
 
     def get_ran_info(self, e2node):
         """
@@ -321,8 +401,14 @@ class xDevSMRMRXapp(RMRXapp, BasexDevSMXapp):
     
 
     def handle(self, xapp, summary, sbuf):
-        self.logger.info("[xDevSMRMRXapp] Recevied handle message Event")
-        xapp.rmr_free(sbuf)
+        """Terminator of the decorator chain.
+
+        Deliberately does not free `sbuf`: _dispatch_event owns the inbound
+        buffer and releases it once the whole chain has returned. Freeing here
+        used to be the only release on the default path, which missed every
+        chain terminating elsewhere and every message whose handler raised.
+        """
+        self.logger.debug("[xDevSMRMRXapp] Recevied handle message Event")
     
     def send(self, *args, **kwargs):
         self.logger.info("[xDevSMRMRXapp] Recevied Sending message Event")

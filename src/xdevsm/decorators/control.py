@@ -165,7 +165,7 @@ class xAppControlService(BaseXDevSMWrapper):
                                         control_message=ctrl_msg_byte_array)
         
 
-    def send_control_request_rmr(self, e2_node_id, control_header: bytes, control_message: bytes, call_process_id: bytes=b"1", requestor_id=1, control_ack_request=1, request_sequence_number=0, seq: int = None):
+    def send_control_request_rmr(self, e2_node_id, control_header: bytes, control_message: bytes, call_process_id: bytes=b"1", requestor_id=1, control_ack_request=1, request_sequence_number=0, seq: int = None, retries: int = 100):
 
         # send() binds the seq it allocated; called directly, start a fresh one
         # rather than adopting whatever this thread last handled.
@@ -185,20 +185,40 @@ class xAppControlService(BaseXDevSMWrapper):
                                                ran_function_id=self.function_id)
 
         self.logger.info("[xAppControlService] Sending Control Request Message: {} ({})".format(size, payload))
+        # The alloc is outside the try: it raises BadBufferAllocation rather
+        # than returning, so there would be nothing to free.
         sbuf = rmr.rmr_alloc_msg(vctx=self._mrc, size=len(payload), mtype=Values.RIC_CONTROL_REQ)
-        rmr.set_payload_and_length(payload,sbuf)
-        rmr.generate_and_set_transaction_id(sbuf)
-        sbuf.contents.state = 0
-        sbuf.contents.mtype = Values.RIC_CONTROL_REQ
-        sbuf.contents.sub_id = -1
-        self.logger.info("[xAppControlService] E2 node id: {}".format(e2_node_id.encode("utf8")))
-        rmr.rmr_set_meid(sbuf, e2_node_id.encode("utf8"))
-        sbuf = rmr.rmr_send_msg(self._mrc, sbuf)
-        # ENCODE_E2AP_DONE: fires once the RMR send returns, matching the
-        # shared catalog's own definition -- not when the encode alone
-        # finishes (flexric stamps this the same way, see msg_handler_xapp.c).
-        _lr.stamp(seq, stages.ENCODE_E2AP_DONE, aux=size)
-        self.logger.info("[xAppControlService] Message Sent")
+        try:
+            rmr.set_payload_and_length(payload,sbuf)
+            rmr.generate_and_set_transaction_id(sbuf)
+            sbuf.contents.state = 0
+            sbuf.contents.mtype = Values.RIC_CONTROL_REQ
+            sbuf.contents.sub_id = -1
+            self.logger.info("[xAppControlService] E2 node id: {}".format(e2_node_id.encode("utf8")))
+            rmr.rmr_set_meid(sbuf, e2_node_id.encode("utf8"))
+            # rmr_send_msg hands back a buffer for the next send: the same mbuf
+            # re-armed on success, the unsent one on failure. Either way that is
+            # the pointer to free, hence the rebind. Retry on a non-zero state
+            # exactly as _BaseXapp.rmr_send does -- a single attempt drops the
+            # control request silently on RMR_ERR_RETRY.
+            for _ in range(retries):
+                sbuf = rmr.rmr_send_msg(self._mrc, sbuf)
+                if sbuf.contents.state == 0:
+                    break
+            else:
+                self.logger.error(
+                    "[xAppControlService] control request not sent after {} attempts (state={})".format(
+                        retries, sbuf.contents.state))
+            # ENCODE_E2AP_DONE: fires once the RMR send returns, matching the
+            # shared catalog's own definition -- not when the encode alone
+            # finishes (flexric stamps this the same way, see msg_handler_xapp.c).
+            # On a failing send this now spans the retries, not one attempt.
+            _lr.stamp(seq, stages.ENCODE_E2AP_DONE, aux=size)
+            self.logger.info("[xAppControlService] Message Sent")
+        finally:
+            # RMR does not take ownership on send; without this the xApp leaks
+            # one 4 KiB buffer per control request, for its whole lifetime.
+            rmr.rmr_free_msg(sbuf)
     
     def _handle_control_ack_suc(self, xapp, summary, sbuf):
         self.logger.info("[xAppControlService] Handling control ack - default implementation")
