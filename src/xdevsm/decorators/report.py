@@ -56,6 +56,7 @@ class xAppReportService(BaseXDevSMWrapper):
         # inventory_name -> list of subscription ids. A single xApp may hold
         # several subscriptions per gNB (e.g. one per slice).
         self.subscription_id = {}
+        self._subscription_lock = threading.RLock()
         self.sm_func_wrapper = None
 
         self.__ext_sub_failed_callback = None
@@ -197,8 +198,9 @@ class xAppReportService(BaseXDevSMWrapper):
         # asynchronously via subs_response_cb once E2 setup completes.
         submgr_sub_id = response_json.get("SubscriptionId")
         if submgr_sub_id is not None:
-            self.subscription_id.setdefault(gnb.inventory_name, []).append(submgr_sub_id)
-            self._pending_resolutions[submgr_sub_id] = gnb.inventory_name
+            with self._subscription_lock:
+                self.subscription_id.setdefault(gnb.inventory_name, []).append(submgr_sub_id)
+                self._pending_resolutions[submgr_sub_id] = gnb.inventory_name
 
         self.logger.info(
             "[xAppReportService] gnb={} SubscriptionId(submgr)={} - awaiting async resolution".format(
@@ -224,19 +226,40 @@ class xAppReportService(BaseXDevSMWrapper):
     def unsubscribe_all(self):
         """Delete every subscription this decorator currently holds at submgr."""
         tag = type(self).__name__
-        if not self.subscription_id:
+        with self._subscription_lock:
+            inventory_names = list(self.subscription_id)
+        if not inventory_names:
             self.logger.info("[{}] no active subscriptions to remove on termination".format(tag))
             return
-        for inventory_name, sub_ids in self.subscription_id.items():
-            for sub_id in list(sub_ids):
-                self.logger.info(
-                    "[{}] unsubscribing gnb={} subid={} (DELETE {})".format(
-                        tag, inventory_name, sub_id, self.uri_subscriptions))
-                try:
-                    self.subscriber.Unsubscribe(sub_id)
-                except Exception as e:
-                    self.logger.error("[{}] failed to unsubscribe {}: {}".format(tag, sub_id, e))
-        self.subscription_id.clear()
+        for inventory_name in inventory_names:
+            self.unsubscribe_gnb(inventory_name)
+
+    def unsubscribe_gnb(self, inventory_name: str):
+        """Delete this decorator's subscriptions for one E2 node.
+
+        Local state is detached before the SubMgr calls. A late asynchronous
+        response from an old subscription can therefore no longer associate
+        that subscription with a newly connected E2 node that has the same
+        inventory name.
+
+        Returns the subscription IDs whose deletion was requested.
+        """
+        tag = type(self).__name__
+        with self._subscription_lock:
+            sub_ids = list(self.subscription_id.pop(inventory_name, []))
+            for sub_id, pending_inventory in list(self._pending_resolutions.items()):
+                if pending_inventory == inventory_name:
+                    self._pending_resolutions.pop(sub_id, None)
+
+        for sub_id in sub_ids:
+            self.logger.info(
+                "[{}] unsubscribing gnb={} subid={} (DELETE {})".format(
+                    tag, inventory_name, sub_id, self.uri_subscriptions))
+            try:
+                self.subscriber.Unsubscribe(sub_id)
+            except Exception as e:
+                self.logger.error("[{}] failed to unsubscribe {}: {}".format(tag, sub_id, e))
+        return sub_ids
 
     def get_subscription_id(self, inventory_name: str):
         """
@@ -248,13 +271,18 @@ class xAppReportService(BaseXDevSMWrapper):
         ----------
         list of subscription ids registered for that gnb (empty if none)
         """
-        return self.subscription_id.get(inventory_name, [])
+        with self._subscription_lock:
+            return list(self.subscription_id.get(inventory_name, []))
 
     def remove_sub_id(self, sub_id: str):
-        for sub_ids in self.subscription_id.values():
-            if sub_id in sub_ids:
-                sub_ids.remove(sub_id)
-                return
+        with self._subscription_lock:
+            self._pending_resolutions.pop(sub_id, None)
+            for inventory_name, sub_ids in list(self.subscription_id.items()):
+                if sub_id in sub_ids:
+                    sub_ids.remove(sub_id)
+                    if not sub_ids:
+                        self.subscription_id.pop(inventory_name, None)
+                    return
         self.logger.error("[XappReportService] subscription id not found")
     
     def subs_response_cb(self, name, path, data, ctype):
@@ -277,7 +305,8 @@ class xAppReportService(BaseXDevSMWrapper):
             submgr_sub_id = response_json.get("SubscriptionId")
             instances = response_json.get("SubscriptionInstances") or []
             e2_event_instance_id = instances[0].get("E2EventInstanceId") if instances else None
-            gnb_inv = self._pending_resolutions.pop(submgr_sub_id, None)
+            with self._subscription_lock:
+                gnb_inv = self._pending_resolutions.pop(submgr_sub_id, None)
             self.logger.info(
                 "[xAppReportService] subscription resolved: submgr={} e2_event_instance_id={} gnb={}".format(
                     submgr_sub_id, e2_event_instance_id, gnb_inv))

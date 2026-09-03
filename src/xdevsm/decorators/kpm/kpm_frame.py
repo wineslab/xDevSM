@@ -168,5 +168,4 @@ class XappKpmFrame(xAppReportService):
         ----------
         subscription id for that gnb
         """
-        return self.subscription_id[inventory_name]
-
+        return super().get_subscription_id(inventory_name)
