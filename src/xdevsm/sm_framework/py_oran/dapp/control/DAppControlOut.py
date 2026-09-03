@@ -12,7 +12,13 @@ from xdevsm.sm_framework.lib.library_wrapper import dApp_lib, wrap_functions
 class e2sm_dapp_ctrl_out_frmt_1_t(ctypes.Structure):
     _fields_ = [
         ("timestamp_ns", ctypes.c_int64),
-        ("origin_seq", ctypes.c_int64),
+        ("sequence_id", ctypes.c_int64),
+        # The Service Model's own account of applying the control, opaque at this
+        # layer and decoded by whichever SM the control's ran_function_id names.
+        # For the Spectrum SM it is an APER Spectrum-ApplyOutcomeData carrying
+        # when the mask was installed and when it first went on the air.
+        ("e3_control_outcome", ctypes.POINTER(ctypes.c_uint8)),
+        ("e3_control_outcome_size", ctypes.c_uint32),
     ]
 
 

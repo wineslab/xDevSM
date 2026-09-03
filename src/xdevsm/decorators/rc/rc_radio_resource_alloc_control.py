@@ -76,7 +76,7 @@ class RadioResourceAllocationControl(xAppControlService):
     def get_dedicated_prb_policy_ratio(self):
         return self.dedicated_prb_policy_ratio
 
-    def generate_control_request(self, ue_id_struct=None, control_action_id=6):
+    def generate_control_request(self, ue_id_struct=None, control_action_id=6, sequence_id=0):
         if ue_id_struct is None:
             if not self.ue_id_type:
                 self.logger.info("[RadioResourceAllocationControl] using mock ue_id")

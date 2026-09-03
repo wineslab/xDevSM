@@ -1,4 +1,5 @@
 import ctypes
+import time
 
 from xdevsm.sm_framework.py_oran.dapp.control import DAppControlHdr as hdr
 from xdevsm.sm_framework.py_oran.dapp.control import DAppControlMsg as ctrl
@@ -33,13 +34,26 @@ class DAppControlReqWrapper():
         dapp_ctrl_req_enc.msg_encoded = self.encode_control_message(self.dapp_ctrl_req.msg)
         return dapp_ctrl_req_enc
     
-    def generate_control_req_frmt_1(self, ran_function_id: int, dapp_id: int, payload: ByteArray):
+    def generate_control_req_frmt_1(self, ran_function_id: int, dapp_id: int, payload: ByteArray,
+                                    sequence_id: int = 0):
+        """Build a format-1 E2SM-DAPP control request.
+
+        ``sequence_id`` correlates this control with the dApp report that
+        prompted it, and the RAN echoes it on the control outcome that says what
+        applying the control did. Leave it 0 only for a control that answers no
+        report: the RAN cannot acknowledge a procedure it cannot name, and 0 is
+        the wire's "unassigned" sentinel.
+        """
         self._payload_ref = payload
         self.dapp_ctrl_req.hdr = hdr.DAppControlHdr()
         self.dapp_ctrl_req.hdr.format = hdr.e2sm_dapp_ctrl_hdr_e.FORMAT_1_E2SM_DAPP_CTRL_HDR
         self.dapp_ctrl_req.hdr.union.frmt_1 = hdr.e2sm_dapp_ctrl_hdr_frmt_1_t()
         self.dapp_ctrl_req.hdr.union.frmt_1.ran_function_id = ran_function_id
         self.dapp_ctrl_req.hdr.union.frmt_1.dapp_id = dapp_id
+        self.dapp_ctrl_req.hdr.union.frmt_1.sequence_id = sequence_id
+        # CLOCK_REALTIME, matching the clock the dApp stamps its reports on and
+        # the one the RAN stamps the apply outcome on.
+        self.dapp_ctrl_req.hdr.union.frmt_1.timestamp_ns = time.time_ns()
         self.dapp_ctrl_req.msg = ctrl.DAppControlMsg()
         self.dapp_ctrl_req.msg.format = ctrl.e2sm_dapp_ctrl_msg_e.FORMAT_1_E2SM_DAPP_CTRL_MSG
         self.dapp_ctrl_req.msg.union.frmt_1 = ctrl.e2sm_dapp_ctrl_msg_frmt_1_t()

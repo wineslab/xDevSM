@@ -14,7 +14,7 @@ class e2sm_dapp_ctrl_hdr_frmt_1_t(ctypes.Structure):
         ("ran_function_id", ctypes.c_uint32),
         ("dapp_id", ctypes.c_uint32),
         ("timestamp_ns", ctypes.c_int64),
-        ("origin_seq", ctypes.c_int64),
+        ("sequence_id", ctypes.c_int64),
     ]
 
 class DAppControlHdr(ctypes.Structure):

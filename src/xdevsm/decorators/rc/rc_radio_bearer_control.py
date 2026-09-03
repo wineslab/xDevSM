@@ -51,7 +51,7 @@ class RadioBearerControl(xAppControlService):
     #     self.ue_id_type = ue_id_type
     #     self.ue_id = ue_id
 
-    def generate_control_request(self, ue_id_struct=None,control_action_id=1):
+    def generate_control_request(self, ue_id_struct=None, control_action_id=1, sequence_id=0):
         if ue_id_struct is None:
             if not self.ue_id_type:
                 self.logger.info("[RCRadioBearerControl] using mock ue_id")

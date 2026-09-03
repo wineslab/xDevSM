@@ -20,7 +20,7 @@ class e2sm_dapp_ind_hdr_frmt_1_t(ctypes.Structure):
         ("node_cu_du_id_present", ctypes.c_bool),
         ("node_cu_du_id", ctypes.c_uint64),
         ("timestamp_ns", ctypes.c_int64),
-        ("origin_seq", ctypes.c_int64),
+        ("sequence_id", ctypes.c_int64),
     ]
 
 
@@ -33,7 +33,7 @@ class e2sm_dapp_ind_hdr_frmt_2_t(ctypes.Structure):
         ("node_cu_du_id_present", ctypes.c_bool),
         ("node_cu_du_id", ctypes.c_uint64),
         ("timestamp_ns", ctypes.c_int64),
-        ("origin_seq", ctypes.c_int64),
+        ("sequence_id", ctypes.c_int64),
     ]
 
 class DAppIndHdr(ctypes.Structure):
@@ -61,6 +61,26 @@ class DAppIndHdrWrapper():
             return None
         self.dapp_ind_hdr = self.decode_indication_header(len(self.byte_array), self.byte_array)
         return self.dapp_ind_hdr
+
+    def get_sequence_id(self):
+        """Correlation id of the procedure this report starts, or None when the
+        producer assigned none.
+
+        Echo it on the control this report prompts: it is what lets the RAN name
+        the procedure when it reports back what applying that control did. Both
+        indication header formats carry it in the same place.
+        """
+        if self.dapp_ind_hdr is None:
+            return None
+        fmt = self.dapp_ind_hdr.format
+        if fmt == e2sm_dapp_ind_hdr_format_e.FORMAT_1_E2SM_DAPP_IND_HDR:
+            seq = int(self.dapp_ind_hdr.union.frmt_1.sequence_id)
+        elif fmt == e2sm_dapp_ind_hdr_format_e.FORMAT_2_E2SM_DAPP_IND_HDR:
+            seq = int(self.dapp_ind_hdr.union.frmt_2.sequence_id)
+        else:
+            return None
+        # 0 is the wire's "unassigned" sentinel, not a usable id.
+        return seq if seq else None
 
     def __del__(self):
         if self.dapp_ind_hdr is not None:

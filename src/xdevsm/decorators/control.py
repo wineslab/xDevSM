@@ -105,11 +105,12 @@ class xAppControlService(BaseXDevSMWrapper):
         func_def_obj = self.function_def_wrapper.decode()
         return func_def_obj
 
-    def generate_control_request(self, ue_id_struct=None, control_action_id=1):
+    def generate_control_request(self, ue_id_struct=None, control_action_id=1, sequence_id=0):
         # defined in the subclasses -> depending on the type of control requested
         pass
 
-    def send(self, e2_node_id, ran_func_dsc, ue_id_struct=None, control_action_id=1):
+    def send(self, e2_node_id, ran_func_dsc, ue_id_struct=None, control_action_id=1,
+             sequence_id=0):
         """
         Sends a Control Request.
 
@@ -117,6 +118,9 @@ class xAppControlService(BaseXDevSMWrapper):
         - e2_node_id: Target E2 node identifier
         - ran_func_dsc: Decoded RC function definition
         - control_action_id: ID of the control action to be performed
+        - sequence_id: correlation id of the procedure this control belongs to,
+          taken from the dApp report that prompted it. The RAN echoes it on the
+          control outcome, so a control sent with 0 cannot be acknowledged.
         """
 
         if not ran_func_dsc.ctrl:
@@ -146,7 +150,9 @@ class xAppControlService(BaseXDevSMWrapper):
         _lr = tls_ring(_LATREC_ROLE)
         _lr.stamp(seq, stages.ENCODE_E2SM_BEGIN)
 
-        self.generate_control_request(ue_id_struct=ue_id_struct, control_action_id=control_action_id)
+        self.generate_control_request(ue_id_struct=ue_id_struct,
+                                      control_action_id=control_action_id,
+                                      sequence_id=sequence_id)
 
         # self.service_model_wrapper.print_ctrl_req()
 
@@ -222,8 +228,12 @@ class xAppControlService(BaseXDevSMWrapper):
     
     def _handle_control_ack_suc(self, xapp, summary, sbuf):
         self.logger.info("[xAppControlService] Handling control ack - default implementation")
-        # Summary is used to correlate the ack with the gNB. 
-        # TODO The full PDU is not decoded yet.
+        # The E2SM outcome inside the acknowledge is still out of reach here:
+        # ricxappframe ships no control-acknowledge decoder, and the one FlexRIC
+        # could export cannot live in libdapp_sm.so (two asn1c header trees
+        # cannot share a translation unit). Until a separate E2AP decode library
+        # exists, the handler gets the RMR summary and can correlate only by
+        # arrival, not by the procedure's sequence id.
         if self.__control_ack_handler_suc:
             self.__control_ack_handler_suc(summary)
 

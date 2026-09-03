@@ -107,7 +107,10 @@ def write_routing_table(
     """
 
     xapp_port = rmr_port
-    message_type_list = [12011, 12012, 12021, 12022, 12050]
+    # 12041/12042 are RIC_CONTROL_ACK / RIC_CONTROL_FAILURE. Without a route an
+    # xApp that sets control_ack_request=1 never sees the answer, and the failure
+    # is silent: the send succeeds and nothing ever comes back.
+    message_type_list = [12011, 12012, 12021, 12022, 12041, 12042, 12050]
 
     routing_table_start = "newrt|start\n"
     routing_table_end = "newrt|end"

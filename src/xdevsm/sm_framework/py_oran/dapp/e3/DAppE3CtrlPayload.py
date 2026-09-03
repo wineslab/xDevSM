@@ -6,10 +6,16 @@ from xdevsm.sm_framework.py_oran.ByteArray import ByteArray
 from xdevsm.sm_framework.lib.library_wrapper import dApp_lib, wrap_functions
 
 
+# Mirrors spectrum_sm_control_t in FlexRIC's
+# src/sm/dapp_sm/e3/service_models/spectrum_sm/ir/spectrum_control.h. Field ORDER
+# and TYPES must match the libdapp_sm.so shipped beside this file: this struct is
+# passed by pointer into dapp_enc_e3_control, which reads every field, so a
+# mirror that is short by one reads past the end of the Python allocation.
 class spectrum_sm_control_t(ctypes.Structure):
     _fields_ = [
         ("prb_count", ctypes.c_long),
         ("blockedPRBs", ctypes.POINTER(ctypes.c_uint16)),
+        # CLOCK_REALTIME nanoseconds, stamped by the xApp that built the control.
         ("timestamp_ns", ctypes.c_int64),
     ]
 

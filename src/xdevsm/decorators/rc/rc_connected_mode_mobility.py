@@ -40,7 +40,7 @@ class ConnectedModeMobilityControl(xAppControlService):
     def set_nr_cell_id(self, nr_cell_id):
         self.nr_cell_id = nr_cell_id
 
-    def generate_control_request(self, ue_id_struct=None, control_action_id=1):
+    def generate_control_request(self, ue_id_struct=None, control_action_id=1, sequence_id=0):
         if ue_id_struct is None:
             if not self.ue_id_type:
                 self.logger.info("[ConnectedModeMobilityControl] using mock ue_id")
