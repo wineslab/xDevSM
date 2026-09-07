@@ -256,10 +256,40 @@ class xAppReportService(BaseXDevSMWrapper):
                 "[{}] unsubscribing gnb={} subid={} (DELETE {})".format(
                     tag, inventory_name, sub_id, self.uri_subscriptions))
             try:
-                self.subscriber.Unsubscribe(sub_id)
+                _data, reason, status = self.subscriber.Unsubscribe(sub_id)
             except Exception as e:
-                self.logger.error("[{}] failed to unsubscribe {}: {}".format(tag, sub_id, e))
+                self._delete_failed(sub_id, inventory_name, "{}".format(e))
+                continue
+            if not self._delete_accepted(status):
+                self._delete_failed(sub_id, inventory_name,
+                                    "HTTP {} {}".format(status, reason))
         return sub_ids
+
+    @staticmethod
+    def _delete_accepted(status):
+        """Whether submgr actually removed the subscription.
+
+        Unsubscribe RETURNS the HTTP status, it does not raise on one, so a
+        DELETE that submgr rejected is indistinguishable from a successful one
+        unless the status is checked. 404 counts as accepted: submgr no longer
+        holds the subscription, which is the outcome the caller wanted.
+        """
+        try:
+            code = int(status)
+        except (TypeError, ValueError):
+            return False
+        return 200 <= code < 300 or code == 404
+
+    def _delete_failed(self, sub_id, inventory_name, why):
+        """A DELETE that did not land leaves the subscription live at submgr
+        while this xApp has already forgotten it, so E2Term keeps routing
+        indications to a consumer that is gone. Nothing here can repair that --
+        log the id loudly enough that it can be removed by hand.
+        """
+        self.logger.error(
+            "[{}] failed to unsubscribe gnb={} subid={}: {} -- subscription may "
+            "still be live at submgr".format(
+                type(self).__name__, inventory_name, sub_id, why))
 
     def get_subscription_id(self, inventory_name: str):
         """
@@ -283,7 +313,10 @@ class xAppReportService(BaseXDevSMWrapper):
                     if not sub_ids:
                         self.subscription_id.pop(inventory_name, None)
                     return
-        self.logger.error("[XappReportService] subscription id not found")
+        # Expected once unsubscribe_gnb has detached the gNB: a late failure
+        # response can arrive for a subscription already removed locally.
+        self.logger.debug(
+            "[XappReportService] subscription id {} not tracked (already detached)".format(sub_id))
     
     def subs_response_cb(self, name, path, data, ctype):
         response = ricrest.initResponse()
