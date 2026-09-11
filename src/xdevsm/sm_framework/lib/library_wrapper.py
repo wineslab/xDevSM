@@ -53,9 +53,4 @@ kpm_lib = _load('libkpm_sm.so')
 wrapper = _load('libsm_framework.so')
 rc_lib = _load('librc_1_03.so')
 dApp_lib = _load('libdapp_sm.so')
-# The E2AP codec, for decoding a RIC Control Acknowledge down to its Service
-# Model outcome. A library of its own rather than part of libdapp_sm.so: each
-# Service Model links its own asn1c-generated grammar, and two of those cannot
-# share a translation unit -- they ship headers of the same names declaring
-# differently suffixed types. Loaded side by side they coexist fine.
 e2ap_ctrl_ack_lib = _load('libe2ap_ctrl_ack_dec.so')

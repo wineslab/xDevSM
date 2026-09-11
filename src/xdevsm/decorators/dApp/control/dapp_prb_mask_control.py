@@ -41,12 +41,18 @@ class DAppPrbMaskControl(xAppControlService):
         # Control parameters
         self.dapp_id = dapp_id
         self.prbs_to_block = prbs_to_block
+        self.sequence_id = 0
         self.payload_enc = None
         if self.prbs_to_block is not None:
             self.set_payload(self.prbs_to_block)
 
     def set_dapp_id(self, dapp_id: int):
         self.dapp_id = dapp_id
+
+    def set_sequence_id(self, sequence_id: int):
+        # Correlates with the dApp report that prompted this control; the RAN
+        # echoes it on the control outcome.
+        self.sequence_id = sequence_id
     
     def set_payload(self, prbs_to_block: list):
         self.prb_to_block = prbs_to_block
@@ -59,9 +65,9 @@ class DAppPrbMaskControl(xAppControlService):
         super().handle(xapp, summary, sbuf)
     
 
-    def generate_control_request(self, ue_id_struct=None, control_action_id=1, sequence_id=0):
+    def generate_control_request(self, ue_id_struct=None, control_action_id=1):
         # TODO do we need any check on the action id?
         self.service_model_wrapper.generate_control_req_frmt_1(ran_function_id=self.ran_function_id,
                                                                dapp_id=self.dapp_id,
                                                                payload=self.payload_enc,
-                                                               sequence_id=sequence_id)
+                                                               sequence_id=self.sequence_id)

@@ -106,12 +106,11 @@ class xAppControlService(BaseXDevSMWrapper):
         func_def_obj = self.function_def_wrapper.decode()
         return func_def_obj
 
-    def generate_control_request(self, ue_id_struct=None, control_action_id=1, sequence_id=0):
+    def generate_control_request(self, ue_id_struct=None, control_action_id=1):
         # defined in the subclasses -> depending on the type of control requested
         pass
 
-    def send(self, e2_node_id, ran_func_dsc, ue_id_struct=None, control_action_id=1,
-             sequence_id=0):
+    def send(self, e2_node_id, ran_func_dsc, ue_id_struct=None, control_action_id=1):
         """
         Sends a Control Request.
 
@@ -119,9 +118,6 @@ class xAppControlService(BaseXDevSMWrapper):
         - e2_node_id: Target E2 node identifier
         - ran_func_dsc: Decoded RC function definition
         - control_action_id: ID of the control action to be performed
-        - sequence_id: correlation id of the procedure this control belongs to,
-          taken from the dApp report that prompted it. The RAN echoes it on the
-          control outcome, so a control sent with 0 cannot be acknowledged.
         """
 
         if not ran_func_dsc.ctrl:
@@ -151,9 +147,7 @@ class xAppControlService(BaseXDevSMWrapper):
         _lr = tls_ring(_LATREC_ROLE)
         _lr.stamp(seq, stages.ENCODE_E2SM_BEGIN)
 
-        self.generate_control_request(ue_id_struct=ue_id_struct,
-                                      control_action_id=control_action_id,
-                                      sequence_id=sequence_id)
+        self.generate_control_request(ue_id_struct=ue_id_struct, control_action_id=control_action_id)
 
         # self.service_model_wrapper.print_ctrl_req()
 
