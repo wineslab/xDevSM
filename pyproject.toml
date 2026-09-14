@@ -62,7 +62,10 @@ pattern = "^(?P<version>\\d+\\.\\d+\\.\\d+)"
 packages = ["src/xdevsm"]
 # The prebuilt Service Model encoders are shipped as package data; declare them as
 # build artifacts so they are always included regardless of VCS-ignore rules.
-artifacts = ["src/xdevsm/sm_framework/lib/*.so"]
+artifacts = [
+    "src/xdevsm/sm_framework/lib/*.so",
+    "src/xdevsm/ricxappframe_patches/*.patch",
+]
 
 
 [tool.hatch.build.targets.sdist]

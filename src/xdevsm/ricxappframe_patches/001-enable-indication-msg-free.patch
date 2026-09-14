@@ -1,0 +1,11 @@
+--- a/ricxappframe/e2ap/asn1.py
++++ b/ricxappframe/e2ap/asn1.py
+@@ -142,7 +142,7 @@
+         self.__call_process_id = bytes(
+             indication.contents.call_process_id[:indication.contents.call_process_id_length])
+ 
+-        # _asn1_free_indicationMsg(indication)
++        _asn1_free_indicationMsg(indication)
+         return
+ 
+ 

@@ -1,0 +1,128 @@
+--- a/ricxappframe/e2ap/asn1.py
++++ b/ricxappframe/e2ap/asn1.py
+@@ -19,7 +19,7 @@
+ from ctypes import POINTER, ARRAY
+ from ctypes import c_ulong, c_void_p, c_long, c_size_t, c_int, c_ssize_t, c_uint8
+ from ricxappframe.e2ap.asn1clib.asn1clib import asn1_c_lib
+-from ricxappframe.e2ap.asn1clib.types import indication_msg_t, subResp_msg_t, ric_action_definition_t, ric_subsequent_action_t
++from ricxappframe.e2ap.asn1clib.types import indication_msg_t, subResp_msg_t, ric_action_definition_t, ric_subsequent_action_t, control_ack_msg_t
+ 
+ 
+ def _wrap_asn1_function(funcname, restype, argtypes):
+@@ -463,3 +463,82 @@
+             raise Exception("Could not create payload.")
+ 
+         return size, bytes(buf)
++
++
++_asn1_decode_controlAckMsg = _wrap_asn1_function(
++    'e2ap_decode_ric_control_acknowledge_message', POINTER(control_ack_msg_t), [c_void_p, c_ulong])
++_asn1_free_controlAckMsg = _wrap_asn1_function(
++    'e2ap_free_decoded_ric_control_ack', c_void_p, [POINTER(control_ack_msg_t)])
++
++
++class ControlAckMsg:
++    """
++    A class that parses the payload of an e2ap RICControlAcknowledge message.
++
++    The E2AP layer only carries the Service Model's octets; `control_outcome`
++    is opaque here and is decoded by whichever Service Model issued the
++    control request.
++    """
++
++    __slots__ = ('__request_id', '__instance_id', '__function_id',
++                 '__call_process_id', '__control_outcome')
++
++    def __init__(self):
++        self.__request_id = -1
++        self.__instance_id = -1
++        self.__function_id = -1
++        self.__call_process_id = b''
++        self.__control_outcome = b''
++
++    @property
++    def request_id(self):
++        return self.__request_id
++
++    @property
++    def instance_id(self):
++        return self.__instance_id
++
++    @property
++    def function_id(self):
++        return self.__function_id
++
++    @property
++    def call_process_id(self):
++        return self.__call_process_id
++
++    @property
++    def control_outcome(self):
++        return self.__control_outcome
++
++    def decode(self, payload: c_void_p):
++        """
++        Function that sets fields of ControlAckMsg class
++        through msg payload (bytes) of RICControlAcknowledge type.
++
++        Raise Exception when payload is not RICControlAcknowledge.
++
++        Parameters
++        ----------
++        payload: c_void_p
++            RICControlAcknowledge type payload received via rmr
++
++        Returns
++        -------
++        """
++        ack: control_ack_msg_t = _asn1_decode_controlAckMsg(
++            payload, getsizeof(payload))
++        if ack is None:
++            raise Exception("Payload is not matched with RICControlAcknowledge")
++
++        self.__request_id = ack.contents.request_id
++        self.__instance_id = ack.contents.instance_id
++        self.__function_id = ack.contents.function_id
++        if ack.contents.call_process_id and ack.contents.call_process_id_length:
++            self.__call_process_id = bytes(
++                ack.contents.call_process_id[:ack.contents.call_process_id_length])
++        if ack.contents.control_outcome and ack.contents.control_outcome_length:
++            self.__control_outcome = bytes(
++                ack.contents.control_outcome[:ack.contents.control_outcome_length])
++
++        _asn1_free_controlAckMsg(ack)
++        return
+--- a/ricxappframe/e2ap/asn1clib/types.py
++++ b/ricxappframe/e2ap/asn1clib/types.py
+@@ -172,3 +172,31 @@
+         ("subsequent_action_type", c_long),
+         ("time_to_wait", c_long),
+     ]
++
++
++class control_ack_msg_t(Structure):
++    """
++    A class that mirrored E2AP's RICControlAcknowledge with python
++
++    c-type struct of RICControlAcknowledge
++    ---------------------------------------
++    typedef struct RICControlAcknowledgeMsg {
++        long requestorID;
++        long instanceID;
++        long ranfunctionID;
++        uint8_t *callProcessID;
++        size_t callProcessIDSize;
++        uint8_t *ricControlOutCome;
++        size_t ricControlOutComeSize;
++    } RICControlAcknowledge;
++    ---------------------------------------
++    """
++    _fields_ = [
++        ("request_id", c_long),
++        ("instance_id", c_long),
++        ("function_id", c_long),
++        ("call_process_id", POINTER(c_uint8)),
++        ("call_process_id_length", c_size_t),
++        ("control_outcome", POINTER(c_uint8)),
++        ("control_outcome_length", c_size_t),
++    ]
