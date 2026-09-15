@@ -221,6 +221,43 @@ class xAppControlService(BaseXDevSMWrapper):
             # one 4 KiB buffer per control request, for its whole lifetime.
             rmr.rmr_free_msg(sbuf)
     
+    def _with_meid(self, ack, summary):
+        """Attach the sending E2 node's id to a decoded acknowledge.
+
+        WHY THIS IS NEEDED. E2AP's RIC CONTROL ACKNOWLEDGE has no E2 Node ID IE
+        -- E2 is point-to-point per node, so the node is implicit in the SCTP
+        association and there is nothing in the PDU to decode. The identity
+        lives one layer down, in the RMR meid that the E2 termination stamps on
+        the message (see send_control_request_rmr, which sets it on the way out,
+        and report.py, which already reads summary['meid'] on the indication
+        path).
+
+        So a handler needs BOTH halves and each arrives from a different place:
+        the procedure id from the decoded PDU, the gNB from the RMR envelope.
+        Decoding alone dropped the envelope, which left a caller able to say
+        WHICH procedure was acknowledged but not BY WHOM -- and a procedure id
+        is only unique per dApp, so two gNBs counting from 1 collide.
+
+        Set as an attribute rather than changing the callback signature, so
+        handlers written against the decoded object keep working unchanged.
+        """
+        if ack is None:
+            return None
+        meid = summary.get("meid")
+        if meid is None:
+            return ack
+        if isinstance(meid, bytes):
+            meid = meid.decode("utf-8", "replace")
+        try:
+            ack.meid = meid
+        except AttributeError:
+            # A decoder returning a type that refuses attributes is not worth
+            # failing an acknowledge over; the procedure id is still usable.
+            self.logger.debug(
+                "[xAppControlService] cannot attach meid to a %s",
+                type(ack).__name__)
+        return ack
+
     def _handle_control_ack_suc(self, xapp, summary, sbuf):
         self.logger.info("[xAppControlService] Handling control ack - default implementation")
         if not self.__control_ack_handler_suc:
@@ -231,12 +268,20 @@ class xAppControlService(BaseXDevSMWrapper):
         # before this existed keeps working; check `is not None` rather than
         # assuming a type.
         ack = decode_control_ack(summary.get(rmr.RMR_MS_PAYLOAD))
+        ack = self._with_meid(ack, summary)
         self.__control_ack_handler_suc(ack if ack is not None else summary)
 
     def _handle_control_ack_fail(self, xapp, summary, sbuf):
         self.logger.info("[xAppControlService] Handling control failure ack - default implementation")
-        if self.__control_ack_handler_fail:
-            self.__control_ack_handler_fail(summary)
+        if not self.__control_ack_handler_fail:
+            return
+        # Decoded on this path too. A FAILURE carries the same header, so the
+        # procedure it answers is knowable, and a caller that keeps per-procedure
+        # state needs to release it on a rejection exactly as on a success --
+        # otherwise a rejected control leaks its entry until a timeout sweeps it.
+        ack = decode_control_ack(summary.get(rmr.RMR_MS_PAYLOAD))
+        ack = self._with_meid(ack, summary)
+        self.__control_ack_handler_fail(ack if ack is not None else summary)
     
 
     def register_control_ack_suc_callback(self, handler):
