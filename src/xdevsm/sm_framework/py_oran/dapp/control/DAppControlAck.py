@@ -43,7 +43,7 @@ class DAppControlAck:
     """
 
     __slots__ = ('ric_requestor_id', 'ran_function_id', 'timestamp_ns',
-                 'sequence_id', 'apply_outcome')
+                 'sequence_id', 'apply_outcome', 'meid')
 
     def __init__(self, ric_requestor_id, ran_function_id, timestamp_ns,
                  sequence_id, apply_outcome):
@@ -52,6 +52,10 @@ class DAppControlAck:
         self.timestamp_ns = timestamp_ns
         self.sequence_id = sequence_id
         self.apply_outcome = apply_outcome
+        # The sending gNB, attached by xAppControlService._with_meid from the
+        # RMR envelope: RIC CONTROL ACKNOWLEDGE has no E2 Node ID IE to decode
+        # it from. None until that runs, so a handler can always read it.
+        self.meid = None
 
     def __repr__(self):
         return ("DAppControlAck(sequence_id={}, timestamp_ns={}, apply_outcome={} B)"

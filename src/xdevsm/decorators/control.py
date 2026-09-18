@@ -254,8 +254,8 @@ class xAppControlService(BaseXDevSMWrapper):
             # A decoder returning a type that refuses attributes is not worth
             # failing an acknowledge over; the procedure id is still usable.
             self.logger.debug(
-                "[xAppControlService] cannot attach meid to a %s",
-                type(ack).__name__)
+                "[xAppControlService] cannot attach meid to a %s"
+                % type(ack).__name__)
         return ack
 
     def _handle_control_ack_suc(self, xapp, summary, sbuf):
