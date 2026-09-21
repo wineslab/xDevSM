@@ -52,9 +52,6 @@ class DAppControlAck:
         self.timestamp_ns = timestamp_ns
         self.sequence_id = sequence_id
         self.apply_outcome = apply_outcome
-        # The sending gNB, attached by xAppControlService._with_meid from the
-        # RMR envelope: RIC CONTROL ACKNOWLEDGE has no E2 Node ID IE to decode
-        # it from. None until that runs, so a handler can always read it.
         self.meid = None
 
     def __repr__(self):
