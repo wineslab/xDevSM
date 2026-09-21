@@ -258,10 +258,6 @@ class xAppControlService(BaseXDevSMWrapper):
         self.logger.info("[xAppControlService] Handling control failure ack - default implementation")
         if not self.__control_ack_handler_fail:
             return
-        # Decoded on this path too. A FAILURE carries the same header, so the
-        # procedure it answers is knowable, and a caller that keeps per-procedure
-        # state needs to release it on a rejection exactly as on a success --
-        # otherwise a rejected control leaks its entry until a timeout sweeps it.
         ack = decode_control_ack(summary.get(rmr.RMR_MS_PAYLOAD))
         ack = self._with_meid(ack, summary)
         self.__control_ack_handler_fail(ack if ack is not None else summary)
