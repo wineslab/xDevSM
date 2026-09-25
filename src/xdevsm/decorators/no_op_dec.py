@@ -9,7 +9,7 @@ class NullDecorator(BaseXDevSMWrapper):
         super().__init__(xapp_handler)
 
     def handle(self, xapp, summary, sbuf):
-        xapp.logger.info("[NullDecorator] Received handle message Event")
+        xapp.logger.debug("[NullDecorator] Received handle message Event")
     
     def send(self, *args, **kwargs):
         print("[NullDecorator] Received send message Event")

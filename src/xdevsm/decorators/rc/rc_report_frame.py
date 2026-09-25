@@ -68,7 +68,7 @@ class XappRcReportFrame(xAppReportService):
 
         callback = self.get_indication_msg_callback()
         if callback is None:
-            self.logger.info(
+            self.logger.debug(
                 "[XappRcReportFrame] no callback; {} neighbour meas dropped".format(
                     len(decoded.get_neighbor_measurements())))
             return
@@ -79,7 +79,7 @@ class XappRcReportFrame(xAppReportService):
     def subscribe(self, gnb, ran_period_ms: int = 1000, action_type=Values.ACTION_TYPE):
         """Subscribe to REPORT Style 1 "Message Copy" of the UL-DCCH
         MeasurementReport for ``gnb``. Returns the submgr subscription id."""
-        self.logger.info(
+        self.logger.debug(
             "[XappRcReportFrame] Preparing RC REPORT (Style {}) subscription for gnb: {}".format(
                 RC_REPORT_STYLE_MESSAGE_COPY, gnb.inventory_name))
 

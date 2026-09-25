@@ -61,7 +61,7 @@ class xAppControlService(BaseXDevSMWrapper):
 
     def handle(self, xapp, summary, sbuf):
         if summary[rmr.RMR_MS_MSG_TYPE] == Values.RIC_CONTROL_ACK:
-            xapp.logger.info("[xAppControlService] Received control ack")
+            xapp.logger.debug("[xAppControlService] Received control ack")
             xapp.logger.debug("[xAppControlService] {}".format(summary))
             self._handle_control_ack_suc(xapp, summary, sbuf)
         elif summary[rmr.RMR_MS_MSG_TYPE] == Values.RIC_CONTROL_FAILURE:
@@ -83,15 +83,15 @@ class xAppControlService(BaseXDevSMWrapper):
         """
 
         if self.function_def_wrapper is None:
-            self.logger.info("[xAppControlService] No function definition wrapper provided, cannot decode RAN function description")
+            self.logger.debug("[xAppControlService] No function definition wrapper provided, cannot decode RAN function description")
             return
         
         if self.function_id == -1:
-            self.logger.info("[xAppControlService] No function id provided, cannot decode RAN function description")
+            self.logger.debug("[xAppControlService] No function id provided, cannot decode RAN function description")
             return
         
         if not json_ran_info:
-            self.logger.info("[xAppControlService] json_ran_info object None value not admitted!")
+            self.logger.debug("[xAppControlService] json_ran_info object None value not admitted!")
             return
 
         for ran_func in json_ran_info["gnb"]["ranFunctions"]: 
@@ -99,7 +99,7 @@ class xAppControlService(BaseXDevSMWrapper):
                 # selecting rc action
                 ran_function_definition = ran_func["ranFunctionDefinition"]
                 break
-        self.logger.info(ran_function_definition)
+        self.logger.debug(ran_function_definition)
         # Decoding RAN function Definition
         self.function_def_wrapper.set_hex(hex=ran_function_definition)
         
@@ -137,7 +137,6 @@ class xAppControlService(BaseXDevSMWrapper):
             self.logger.error("{} style not supported".format(self.service_style_name))
             return
 
-        self.logger.info("{} style supported generating message".format(self.service_style_name))
 
         # ENCODE_E2SM_BEGIN: start of B5, the control decision's SM encode.
         # A fresh seq: this is the start of the policy-down leg, not a
@@ -156,8 +155,8 @@ class xAppControlService(BaseXDevSMWrapper):
         hdr_byte_array = ctrl_req_enc.hdr_encoded.to_bytes()
         ctrl_msg_byte_array = ctrl_req_enc.msg_encoded.to_bytes()
 
-        self.logger.info("[xAppControlService] hdr encoded: {}".format(hdr_byte_array))
-        self.logger.info("[xAppControlService] ctrl encoded: {}".format(ctrl_msg_byte_array))
+        self.logger.debug("[xAppControlService] hdr encoded: {}".format(hdr_byte_array))
+        self.logger.debug("[xAppControlService] ctrl encoded: {}".format(ctrl_msg_byte_array))
         # ENCODE_E2SM_DONE: end of B5 -- hands to B6 (ENCODE_E2AP_BEGIN).
         _lr.stamp(seq, stages.ENCODE_E2SM_DONE,
                   aux=len(hdr_byte_array) + len(ctrl_msg_byte_array))
@@ -185,7 +184,7 @@ class xAppControlService(BaseXDevSMWrapper):
                                                control_message=control_message,
                                                ran_function_id=self.function_id)
 
-        self.logger.info("[xAppControlService] Sending Control Request Message: {} ({})".format(size, payload))
+        self.logger.debug("[xAppControlService] Sending Control Request Message: {} ({})".format(size, payload))
         # The alloc is outside the try: it raises BadBufferAllocation rather
         # than returning, so there would be nothing to free.
         sbuf = rmr.rmr_alloc_msg(vctx=self._mrc, size=len(payload), mtype=Values.RIC_CONTROL_REQ)
@@ -195,7 +194,7 @@ class xAppControlService(BaseXDevSMWrapper):
             sbuf.contents.state = 0
             sbuf.contents.mtype = Values.RIC_CONTROL_REQ
             sbuf.contents.sub_id = -1
-            self.logger.info("[xAppControlService] E2 node id: {}".format(e2_node_id.encode("utf8")))
+            self.logger.debug("[xAppControlService] E2 node id: {}".format(e2_node_id.encode("utf8")))
             rmr.rmr_set_meid(sbuf, e2_node_id.encode("utf8"))
             # rmr_send_msg hands back a buffer for the next send: the same mbuf
             # re-armed on success, the unsent one on failure. Either way that is
@@ -215,7 +214,7 @@ class xAppControlService(BaseXDevSMWrapper):
             # finishes (flexric stamps this the same way, see msg_handler_xapp.c).
             # On a failing send this now spans the retries, not one attempt.
             _lr.stamp(seq, stages.ENCODE_E2AP_DONE, aux=size)
-            self.logger.info("[xAppControlService] Message Sent")
+            self.logger.debug("[xAppControlService] Message Sent")
         finally:
             # RMR does not take ownership on send; without this the xApp leaks
             # one 4 KiB buffer per control request, for its whole lifetime.
@@ -242,7 +241,7 @@ class xAppControlService(BaseXDevSMWrapper):
         return ack
 
     def _handle_control_ack_suc(self, xapp, summary, sbuf):
-        self.logger.info("[xAppControlService] Handling control ack - default implementation")
+        self.logger.debug("[xAppControlService] Handling control ack - default implementation")
         if not self.__control_ack_handler_suc:
             return
         # The callback gets the decoded acknowledge, which names the procedure it
@@ -255,7 +254,7 @@ class xAppControlService(BaseXDevSMWrapper):
         self.__control_ack_handler_suc(ack if ack is not None else summary)
 
     def _handle_control_ack_fail(self, xapp, summary, sbuf):
-        self.logger.info("[xAppControlService] Handling control failure ack - default implementation")
+        self.logger.debug("[xAppControlService] Handling control failure ack - default implementation")
         if not self.__control_ack_handler_fail:
             return
         ack = decode_control_ack(summary.get(rmr.RMR_MS_PAYLOAD))
@@ -271,7 +270,7 @@ class xAppControlService(BaseXDevSMWrapper):
     
 
     def terminate(self, signum, frame):
-        self.logger.info("[xAppControlService] Terminating xApp")
+        self.logger.debug("[xAppControlService] Terminating xApp")
         self.delete_rmr_rule()
 
         self._xapp_handler.terminate(signum, frame)
@@ -281,14 +280,14 @@ class xAppControlService(BaseXDevSMWrapper):
         Add RMR rule for control messages
         """
         # TODO
-        self.logger.info("[xAppControlService] Adding RMR rule for control messages")
+        self.logger.debug("[xAppControlService] Adding RMR rule for control messages")
     
     def delete_rmr_rule(self):
         """
         Delete RMR rule for control messages
         """
         # TODO
-        self.logger.info("[xAppControlService] Deleting RMR rule for control messages")
+        self.logger.debug("[xAppControlService] Deleting RMR rule for control messages")
     
     ########## Temporary mock functions for UE ID ##########
     def get_mock_du_ue_id(self, ran_ue_id: ctypes.c_uint32) -> kpmmsg.ue_id_e2sm_t:

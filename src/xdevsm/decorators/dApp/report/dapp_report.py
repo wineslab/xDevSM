@@ -116,7 +116,7 @@ class DAppReport(xAppReportService):
         if ind_msg_callback is not None:
             ind_msg_callback(dapp_ind_hdr, dapp_ind_msg, meid)
         else:
-            self.logger.warning("[DAppReport] No indication message callback registered, skipping processing")
+            self.logger.debug("[DAppReport] No indication message callback registered, skipping processing")
 
     
     def subscribe(self, gnb, ev_trigger: DAppEvTrigger.DAppEvTrigger=None, action_def_in: int=None):
@@ -133,23 +133,23 @@ class DAppReport(xAppReportService):
         """
         action_def = DAppActionDef.DAppActionDefWrapper()
         if ev_trigger is None:
-            self.logger.info("[DAppReport] Event trigger is None build a default one")
+            self.logger.debug("[DAppReport] Event trigger is None build a default one")
             ev_trigger = DAppEvTrigger.DAppEvTriggerWrapper()
             ev_trigger.create_dummy_ev_trigger()
 
         if action_def_in is None:
-            self.logger.info("[DAppReport] Action definition is None build a default one")
+            self.logger.debug("[DAppReport] Action definition is None build a default one")
             action_def.create_dummy_action_def()
         else:
             action_def.create_action_def_from_report_style(action_def_in)
 
         # encoding event trigger
         ev_trigger_enc = ev_trigger.encode()
-        self.logger.info("[DAppReport] Event trigger encoded: {}".format(ev_trigger_enc.byte_array_to_tuple()))
+        self.logger.debug("[DAppReport] Event trigger encoded: {}".format(ev_trigger_enc.byte_array_to_tuple()))
         
         # encoding action definition
         action_def_enc: ByteArray = action_def.encode()
-        self.logger.info("[DAppReport] Action definition encoded: {}".format(action_def_enc.byte_array_to_tuple()))
+        self.logger.debug("[DAppReport] Action definition encoded: {}".format(action_def_enc.byte_array_to_tuple()))
         
         # Create Action to be setup list
         action = self.subscriber.ActionToBeSetup(action_id=1,

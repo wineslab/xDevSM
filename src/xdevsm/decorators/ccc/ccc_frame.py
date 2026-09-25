@@ -82,7 +82,7 @@ class XappCccFrame(xAppReportService):
         hdr = CccIndicationHeader(hdr_bytes)
         msg = CccIndicationMessage(msg_bytes)
 
-        self.logger.info(
+        self.logger.debug(
             "[XappCccFrame] decoded header: reason={} eventTime={}".format(
                 hdr.indication_reason, hdr.event_time
             )
@@ -102,13 +102,13 @@ class XappCccFrame(xAppReportService):
             arfcn_dl = vs.get("arfcnDL")
             bw_dl = vs.get("bSChannelBwDL")
             bwps = vs.get("bWPList") or []
-            self.logger.info(
+            self.logger.debug(
                 "[XappCccFrame] cell={} struct={} arfcnDL={} bSChannelBwDL={} bWPs={}".format(
                     cgi, name, arfcn_dl, bw_dl, len(bwps)
                 )
             )
             for i, b in enumerate(bwps):
-                self.logger.info(
+                self.logger.debug(
                     "[XappCccFrame]   BWP[{}] scs={} numberOfRBs={} startRB={} ctx={}".format(
                         i,
                         b.get("subCarrierSpacing"),
@@ -142,7 +142,7 @@ class XappCccFrame(xAppReportService):
         if attributes is None:
             attributes = ["arfcnDL", "bSChannelBwDL", "bWPList"]
 
-        self.logger.info(
+        self.logger.debug(
             "[XappCccFrame] preparing subscription for gnb={} ran_period_ms={} attrs={}".format(
                 getattr(gnb, "inventory_name", "?"), ran_period_ms, attributes
             )

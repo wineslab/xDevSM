@@ -79,10 +79,10 @@ class RadioResourceAllocationControl(xAppControlService):
     def generate_control_request(self, ue_id_struct=None, control_action_id=6):
         if ue_id_struct is None:
             if not self.ue_id_type:
-                self.logger.info("[RadioResourceAllocationControl] using mock ue_id")
+                self.logger.debug("[RadioResourceAllocationControl] using mock ue_id")
                 ue_id_struct = self.get_mock_ue_id(ran_ue_id=self.ue_id)
             else:
-                self.logger.info("[RadioResourceAllocationControl] using mock du_ue_id")
+                self.logger.debug("[RadioResourceAllocationControl] using mock du_ue_id")
                 ue_id_struct = self.get_mock_du_ue_id(ran_ue_id=self.ue_id)
 
         if control_action_id == 6: # Slice-level PRB quota

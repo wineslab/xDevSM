@@ -55,9 +55,9 @@ class meas_data_basic_mue_t(ctypes.Structure):
 
     def print_meas_values(self, logger: Logger):
         for i in range(self.ue_meas_report_lst_len):
-            logger.info("~~~~~~~~~~ MEAS INFO data: {} ~~~~~~~~~~".format(i))
-            logger.info("Analyzing UE [{}]".format(i))
-            logger.info(self.meas_data[i].meas_data_lst_len)
+            logger.debug("~~~~~~~~~~ MEAS INFO data: {} ~~~~~~~~~~".format(i))
+            logger.debug("Analyzing UE [{}]".format(i))
+            logger.debug(self.meas_data[i].meas_data_lst_len)
             for j in range(self.meas_data[i].meas_data_lst_len):
                 print("data [{}]".format(j))
                 meas_data_lst_el = self.meas_data[i].meas_data_lst[j]
@@ -68,48 +68,48 @@ class meas_data_basic_mue_t(ctypes.Structure):
                         elif meas_data_lst_el.meas_record_lst[k].value.value == meas_value_e.REAL_MEAS_VALUE:
                             self.log_values_real(logger, self.meas_data[i].meas_type[k].value.name, meas_data_lst_el.meas_record_lst[k])
                     else:
-                        logger.info("Not supported meas type {}".format(self.meas_data[i].meas_type[k].type.name))
+                        logger.debug("Not supported meas type {}".format(self.meas_data[i].meas_type[k].type.name))
     
 
     def log_values(self, logger: Logger, byte_array: ByteArray, meas_record: meas_record_lst_t):
         if byte_array.cmp_str_ba("RRU.PrbTotDl"):
-            logger.info("RRU.PrbTotDl = {} [PRBs]".format(meas_record.union.int_val))
+            logger.debug("RRU.PrbTotDl = {} [PRBs]".format(meas_record.union.int_val))
         elif byte_array.cmp_str_ba("RRU.PrbTotUl"):
-            logger.info("RRU.PrbTotUl = {} [PRBs]".format(meas_record.union.int_val))
+            logger.debug("RRU.PrbTotUl = {} [PRBs]".format(meas_record.union.int_val))
         elif byte_array.cmp_str_ba("DRB.PdcpSduVolumeDL"):
-            logger.info("DRB.PdcpSduVolumeDL = {} [kb]".format(meas_record.union.int_val))
+            logger.debug("DRB.PdcpSduVolumeDL = {} [kb]".format(meas_record.union.int_val))
         elif byte_array.cmp_str_ba("DRB.PdcpSduVolumeUL"):
-            logger.info("DRB.PdcpSduVolumeUL = {} [kb]".format(meas_record.union.int_val))
+            logger.debug("DRB.PdcpSduVolumeUL = {} [kb]".format(meas_record.union.int_val))
         elif byte_array.cmp_str_ba("DRB.UEThpDl"):
-            logger.info("DRB.UEThpDl - not supported")
+            logger.debug("DRB.UEThpDl - not supported")
         elif byte_array.cmp_str_ba("DRB.UEThpUl"):
-            logger.info("DRB.UEThpUl - not supported")
+            logger.debug("DRB.UEThpUl - not supported")
         elif byte_array.cmp_str_ba("RRU.PrbTotDl"):
-            logger.info("RRU.PrbTotDl - not supported")
+            logger.debug("RRU.PrbTotDl - not supported")
         elif byte_array.cmp_str_ba("RRU.PrbTotUl"):
-            logger.info("RRU.PrbTotUl - not supported")
+            logger.debug("RRU.PrbTotUl - not supported")
         else:
-            logger.info("Measurement Name not yet supported")
+            logger.debug("Measurement Name not yet supported")
 
     def log_values_real(self, logger: Logger, byte_array: ByteArray, meas_record: meas_record_lst_t):
         if byte_array.cmp_str_ba("RRU.PrbTotDl"):
-            logger.info("RRU.PrbTotDl = {} [PRBs]".format(meas_record.union.real_val))
+            logger.debug("RRU.PrbTotDl = {} [PRBs]".format(meas_record.union.real_val))
         elif byte_array.cmp_str_ba("RRU.PrbTotUl"):
-            logger.info("RRU.PrbTotUl = {} [PRBs]".format(meas_record.union.real_val))
+            logger.debug("RRU.PrbTotUl = {} [PRBs]".format(meas_record.union.real_val))
         elif byte_array.cmp_str_ba("DRB.PdcpSduVolumeDL"):
-            logger.info("DRB.PdcpSduVolumeDL = {} [kb]".format(meas_record.union.real_val))
+            logger.debug("DRB.PdcpSduVolumeDL = {} [kb]".format(meas_record.union.real_val))
         elif byte_array.cmp_str_ba("DRB.PdcpSduVolumeUL"):
-            logger.info("DRB.PdcpSduVolumeUL = {} [kb]".format(meas_record.union.real_val))
+            logger.debug("DRB.PdcpSduVolumeUL = {} [kb]".format(meas_record.union.real_val))
         elif byte_array.cmp_str_ba("DRB.UEThpDl"):
-            logger.info("DRB.UEThpDl - not supported")
+            logger.debug("DRB.UEThpDl - not supported")
         elif byte_array.cmp_str_ba("DRB.UEThpUl"):
-            logger.info("DRB.UEThpUl - not supported")
+            logger.debug("DRB.UEThpUl - not supported")
         elif byte_array.cmp_str_ba("RRU.PrbTotDl"):
-            logger.info("RRU.PrbTotDl - not supported")
+            logger.debug("RRU.PrbTotDl - not supported")
         elif byte_array.cmp_str_ba("RRU.PrbTotUl"):
-            logger.info("RRU.PrbTotUl - not supported")
+            logger.debug("RRU.PrbTotUl - not supported")
         else:
-            logger.info("Measurement Name not yet supported")
+            logger.debug("Measurement Name not yet supported")
 
 def decode(len, buf) -> meas_data_basic_mue_t:
     get_meas_data = wrap_functions(wrapper, 'get_basic_meas_info', meas_data_basic_mue_t, [ctypes.c_size_t, ctypes.POINTER(ctypes.c_uint8)])

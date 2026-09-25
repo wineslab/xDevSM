@@ -469,96 +469,96 @@ class KpmIndMsg(ctypes.Structure):
                 elif meas_info_el.meas_type.type.value == meas_type_enum.ID_MEAS_TYPE:
                     self.log_values_id(logger, meas_info_el.meas_type.value.id, meas_record_lst_el)
                 else:
-                    logger.info("Not supported meas type {}".format(meas_info_el.meas_type.type.value))
+                    logger.debug("Not supported meas type {}".format(meas_info_el.meas_type.type.value))
 
     def print_labels(self, logger: Logger, label_size: ctypes.c_size_t, label_list: label_info_lst_t):
         
         for i in range(label_size):
             label_el = label_list[i]
             if label_el.noLabel:
-                logger.info("noLabel: ".format(label_el.noLabel.contents.value))
+                logger.debug("noLabel: ".format(label_el.noLabel.contents.value))
             
             if label_el.plmn_id:
-                logger.info("plmn_id: ".format(label_el.plmn_id.contents.value))
+                logger.debug("plmn_id: ".format(label_el.plmn_id.contents.value))
             
             if label_el.sliceID:
-                logger.info("sliceID: ".format(label_el.sliceID.contents.value))
+                logger.debug("sliceID: ".format(label_el.sliceID.contents.value))
             
             if label_el.fiveQI:
-                logger.info("fiveQI: ".format(label_el.fiveQI.contents.value))
+                logger.debug("fiveQI: ".format(label_el.fiveQI.contents.value))
             
             if label_el.qFI:
-                logger.info("qFI: ".format(label_el.fiveQI.contents.value))
+                logger.debug("qFI: ".format(label_el.fiveQI.contents.value))
             
 
     def log_values(self, logger: Logger, meas_type: ByteArray, meas_record: meas_record_lst_t, type=meas_value_e.INTEGER_MEAS_VALUE):
         meas_type_bs = bytes(np.ctypeslib.as_array(meas_type.buf, shape = (meas_type.len,)))
         meas_type_str = meas_type_bs.decode('utf-8')
         if type == meas_value_e.INTEGER_MEAS_VALUE:
-            logger.info("{}:{}".format(meas_type_str, meas_record.union.int_val))
+            logger.debug("{}:{}".format(meas_type_str, meas_record.union.int_val))
         elif type == meas_value_e.REAL_MEAS_VALUE:
-            logger.info("{}:{}".format(meas_type_str, meas_record.union.real_val))
+            logger.debug("{}:{}".format(meas_type_str, meas_record.union.real_val))
 
     def log_values_real(self, logger: Logger, byte_array: ByteArray, meas_record: meas_record_lst_t):
         printed = False
         for value in measurements_ids:
             if byte_array.cmp_str_ba(value):
-                logger.info("{}: {}".format(value,meas_record.union.real_val))
+                logger.debug("{}: {}".format(value,meas_record.union.real_val))
                 printed = True
                 break
         
         if not printed:
-            logger.info("Measurement Id not yet supported")
+            logger.debug("Measurement Id not yet supported")
 
     def log_values_id(self, logger: Logger, byte_array, meas_record: meas_record_lst_t):
-        logger.info("received id value - not supported yet: {}".format(byte_array))
+        logger.debug("received id value - not supported yet: {}".format(byte_array))
 
     def log_ue_id_info(self, logger: Logger, ue_info: ue_id_e2sm_t):
-        logger.info("ue id info type: {}".format(ue_info.type.value))
+        logger.debug("ue id info type: {}".format(ue_info.type.value))
         if ue_info.type.value == ue_id_e2sm_e.GNB_UE_ID_E2SM:
-            logger.info("-- GNB_UE_ID_E2SM")
+            logger.debug("-- GNB_UE_ID_E2SM")
             gnb_mono = ue_info.union.gnb
-            logger.info("---- amf_ue_ngap_id: {}".format(gnb_mono.amf_ue_ngap_id))
-            logger.info("---- guami")
-            logger.info("------ amf_region_id: {}".format(gnb_mono.guami.amf_region_id))
-            logger.info("------ amf_set_id: {}".format(gnb_mono.guami.amf_set_id))
-            logger.info("------ amf_ptr: {}".format(gnb_mono.guami.amf_ptr))
-            logger.info("------ plmn_id")
-            logger.info("-------- mcc: {}".format(gnb_mono.guami.plmn_id.mcc))
-            logger.info("-------- mnc: {}".format(gnb_mono.guami.plmn_id.mnc))
-            logger.info("-------- mnc_digit_len: {}".format(gnb_mono.guami.plmn_id.mnc_digit_len))
-            logger.info("----gnb_cu_ue_f1ap_lst_len: {}".format(gnb_mono.gnb_cu_ue_f1ap_lst_len))
+            logger.debug("---- amf_ue_ngap_id: {}".format(gnb_mono.amf_ue_ngap_id))
+            logger.debug("---- guami")
+            logger.debug("------ amf_region_id: {}".format(gnb_mono.guami.amf_region_id))
+            logger.debug("------ amf_set_id: {}".format(gnb_mono.guami.amf_set_id))
+            logger.debug("------ amf_ptr: {}".format(gnb_mono.guami.amf_ptr))
+            logger.debug("------ plmn_id")
+            logger.debug("-------- mcc: {}".format(gnb_mono.guami.plmn_id.mcc))
+            logger.debug("-------- mnc: {}".format(gnb_mono.guami.plmn_id.mnc))
+            logger.debug("-------- mnc_digit_len: {}".format(gnb_mono.guami.plmn_id.mnc_digit_len))
+            logger.debug("----gnb_cu_ue_f1ap_lst_len: {}".format(gnb_mono.gnb_cu_ue_f1ap_lst_len))
             for i in range(0, gnb_mono.gnb_cu_ue_f1ap_lst_len):
-                logger.info("------gnb_cu_ue_f1ap_lst: {}".format(gnb_mono.gnb_cu_ue_f1ap_lst[i]))
+                logger.debug("------gnb_cu_ue_f1ap_lst: {}".format(gnb_mono.gnb_cu_ue_f1ap_lst[i]))
             
-            logger.info("---- gnb_cu_ue_f1ap_lst_len: {}".format(gnb_mono.gnb_cu_cp_ue_e1ap_lst_len))
+            logger.debug("---- gnb_cu_ue_f1ap_lst_len: {}".format(gnb_mono.gnb_cu_cp_ue_e1ap_lst_len))
             for i in range(0, gnb_mono.gnb_cu_cp_ue_e1ap_lst_len):
-                logger.info("------ gnb_cu_ue_f1ap_lst: {}".format(gnb_mono.gnb_cu_cp_ue_e1ap_lst[i]))
+                logger.debug("------ gnb_cu_ue_f1ap_lst: {}".format(gnb_mono.gnb_cu_cp_ue_e1ap_lst[i]))
             
             if gnb_mono.ran_ue_id: 
-                logger.info("---- ran_ue_id: {}".format(gnb_mono.ran_ue_id.contents.value))
+                logger.debug("---- ran_ue_id: {}".format(gnb_mono.ran_ue_id.contents.value))
             
             if gnb_mono.ng_ran_node_ue_xnap_id: 
-                logger.info("---- ng_ran_node_ue_xnap_id: {}".format(gnb_mono.ng_ran_node_ue_xnap_id.contents.value))
+                logger.debug("---- ng_ran_node_ue_xnap_id: {}".format(gnb_mono.ng_ran_node_ue_xnap_id.contents.value))
             
-            logger.info("---- global_gnb_id")
+            logger.debug("---- global_gnb_id")
             if gnb_mono.global_gnb_id: 
-                logger.info("todo add gnb print")
-                logger.info("------ type: {}".format(gnb_mono.global_gnb_id.contents.type.value))
-                logger.info("------ plmn_id")
-                logger.info("-------- mcc: {}".format(gnb_mono.global_gnb_id.contents.plmn_id.mcc))
-                logger.info("-------- mnc: {}".format(gnb_mono.global_gnb_id.contents.plmn_id.mnc))
-                logger.info("-------- mnc_digit_len: {}".format(gnb_mono.global_gnb_id.contents.plmn_id.mnc_digit_len))
+                logger.debug("todo add gnb print")
+                logger.debug("------ type: {}".format(gnb_mono.global_gnb_id.contents.type.value))
+                logger.debug("------ plmn_id")
+                logger.debug("-------- mcc: {}".format(gnb_mono.global_gnb_id.contents.plmn_id.mcc))
+                logger.debug("-------- mnc: {}".format(gnb_mono.global_gnb_id.contents.plmn_id.mnc))
+                logger.debug("-------- mnc_digit_len: {}".format(gnb_mono.global_gnb_id.contents.plmn_id.mnc_digit_len))
             
             if gnb_mono.global_ng_ran_node_id:
-                logger.info("---- global_ng_ran_node_id")
-                logger.info("add logging")
+                logger.debug("---- global_ng_ran_node_id")
+                logger.debug("add logging")
         elif ue_info.type.value == ue_id_e2sm_e.GNB_DU_UE_ID_E2SM:
-            logger.info("-- GNB_DU_UE_ID_E2SM")
+            logger.debug("-- GNB_DU_UE_ID_E2SM")
             gnb_du = ue_info.union.gnb_du
-            logger.info("----gnb_cu_ue_f1ap: {}".format(gnb_du.gnb_cu_ue_f1ap))
+            logger.debug("----gnb_cu_ue_f1ap: {}".format(gnb_du.gnb_cu_ue_f1ap))
             if gnb_du.ran_ue_id:
-                logger.info("----ran_ue_id: {}".format(gnb_du.ran_ue_id.contents.value))
+                logger.debug("----ran_ue_id: {}".format(gnb_du.ran_ue_id.contents.value))
         else:
             logger.debug("no log information for ue info type: {}".format(ue_info.type.value))
             

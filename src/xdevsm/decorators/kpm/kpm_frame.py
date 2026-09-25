@@ -78,7 +78,7 @@ class XappKpmFrame(xAppReportService):
 
         ind_msg_callback = self.get_indication_msg_callback()
         if ind_msg_callback is None:
-            self.logger.info("[XappKpmFrame] No indication message callback registered - printing default information")
+            self.logger.debug("[XappKpmFrame] No indication message callback registered - printing default information")
             self.logger.debug("[XappKpmFrame] indication header encoded ba: {}, indication header format decoded: {}".format(
                 ba_ind_header, decoded_ind_hdr.type.value
             ))
@@ -94,7 +94,7 @@ class XappKpmFrame(xAppReportService):
         the sub_id is what callers need to correlate later indications with this specific subscription.
         """
 
-        self.logger.info("[XappKpmFrame] Preparing subscription for gnb: {}".format(gnb.inventory_name))
+        self.logger.debug("[XappKpmFrame] Preparing subscription for gnb: {}".format(gnb.inventory_name))
         
 
         if self.subscriber.ResponseHandler(self.subs_response_cb, self.server) is not True:
@@ -103,7 +103,7 @@ class XappKpmFrame(xAppReportService):
         # encoding event trigger
         encoded_ev_trig = function_definition_builder.ev_trigger_encoder(period_ev_trig=ev_trigger[1])
 
-        self.logger.info("[XappKpmFrame] event trigger encoded: {}".format(encoded_ev_trig.byte_array_to_tuple()))
+        self.logger.debug("[XappKpmFrame] event trigger encoded: {}".format(encoded_ev_trig.byte_array_to_tuple()))
         
         actions = []
         # encoding action defintion
@@ -111,7 +111,7 @@ class XappKpmFrame(xAppReportService):
 
         for index, key in enumerate(encoded_actions_def.keys()):
             value = encoded_actions_def[key].byte_array_to_tuple()
-            self.logger.info("[XappKpmFrame] actions encoded: {}".format(value))
+            self.logger.debug("[XappKpmFrame] actions encoded: {}".format(value))
 
             action = self.subscriber.ActionToBeSetup(action_id=1,
                                                     action_type=action_type,
@@ -120,7 +120,7 @@ class XappKpmFrame(xAppReportService):
             actions.append(action)
         
         if len(actions) == 0:
-            self.logger.info("[XappKpmFrame] No action built!")
+            self.logger.debug("[XappKpmFrame] No action built!")
             return None
 
         result = self.send_subscription(gnb, encoded_ev_trig, actions)

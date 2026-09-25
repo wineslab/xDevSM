@@ -42,7 +42,7 @@ class NewSubscriber():
     # following methods are wrappers to hide the swagger client
     def SubscriptionParamsClientEndpoint(self, host=None, http_port=None, rmr_port=None):
         if host is None or http_port is None or rmr_port is None:
-            logging.info("client end point - parameters not defined")
+            logging.debug("client end point - parameters not defined")
             return None
         else:
             client_end_point = {}

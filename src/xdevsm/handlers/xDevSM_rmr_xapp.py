@@ -88,9 +88,9 @@ class xDevSMRMRXapp(RMRXapp, BasexDevSMXapp):
             self.logger.error("rmr svc port not found: setting default to 4561")
             self.rmr_svc_port = 4561
         else:
-            self.logger.info("http port: {}, rmr svc port: {}".format(self.http_port, self.rmr_svc_port))
+            self.logger.debug("http port: {}, rmr svc port: {}".format(self.http_port, self.rmr_svc_port))
         
-        self.logger.info("http port: {}, rmr port: {}, rmr svc port: {}".format(self.http_port, self.rmr_port, self.rmr_svc_port))
+        self.logger.debug("http port: {}, rmr port: {}, rmr svc port: {}".format(self.http_port, self.rmr_port, self.rmr_svc_port))
 
         # Getting plt namespace
         self.pltnamespace = os.environ.get("PLT_NAMESPACE")
@@ -147,7 +147,7 @@ class xDevSMRMRXapp(RMRXapp, BasexDevSMXapp):
         return response
     
     def _post_init(self, xapp):
-        xapp.logger.info("xApp Initialized")
+        xapp.logger.debug("xApp Initialized")
     
     def register_handler(self, handler):
         self._handler = handler
@@ -301,7 +301,7 @@ class xDevSMRMRXapp(RMRXapp, BasexDevSMXapp):
                         return True
             return False
         except Exception as e:
-            self.logger.info("[xDevSMRMRXapp] endpoints check unavailable: {}".format(e))
+            self.logger.debug("[xDevSMRMRXapp] endpoints check unavailable: {}".format(e))
             return None
 
     def wait_until_ready_for_subscriptions(self):
@@ -326,14 +326,14 @@ class xDevSMRMRXapp(RMRXapp, BasexDevSMXapp):
         while time.time() < deadline:
             state = self._in_service_endpoints()
             if state is True:
-                self.logger.info("[xDevSMRMRXapp] pod is in the RMR Service endpoints; subscribing")
+                self.logger.debug("[xDevSMRMRXapp] pod is in the RMR Service endpoints; subscribing")
                 return
             if state is None:
                 break   # no API access -> fall through to the time-based wait
             time.sleep(3)
         remaining = deadline - time.time()
         if remaining > 0:
-            self.logger.info(
+            self.logger.debug(
                 "[xDevSMRMRXapp] waiting {:.0f}s for the readiness window so the pod is in the RMR Service endpoints before subscribing".format(remaining))
             time.sleep(remaining)
 
@@ -349,15 +349,15 @@ class xDevSMRMRXapp(RMRXapp, BasexDevSMXapp):
         gnb_list = self.get_list_gnb_ids()
 
         if len(gnb_list) == 0:
-            self.logger.info("[xDevSMRMRXapp] no gnb available")
+            self.logger.debug("[xDevSMRMRXapp] no gnb available")
             return None, None
 
         if not e2node_inventory_name:
             # This logic considers each gnb available for that RIC
-            self.logger.info("[xDevSMRMRXapp] selecting the first gnb connected")
+            self.logger.debug("[xDevSMRMRXapp] selecting the first gnb connected")
         else:
             # This logic only considers the passed gnb
-            self.logger.info("[xDevSMRMRXapp] querying status of passed gnb {}".format(e2node_inventory_name))
+            self.logger.debug("[xDevSMRMRXapp] querying status of passed gnb {}".format(e2node_inventory_name))
 
         for index, gnb in enumerate(gnb_list):
             if e2node_inventory_name and gnb.inventory_name != e2node_inventory_name:
@@ -366,7 +366,7 @@ class xDevSMRMRXapp(RMRXapp, BasexDevSMXapp):
             gnb_info = self.get_ran_info(e2node=gnb)
 
             if gnb_info.get("connectionStatus") != "CONNECTED":
-                self.logger.info("[xDevSMRMRXapp] E2 node {} not connected! Skipping...".format(gnb.inventory_name))
+                self.logger.debug("[xDevSMRMRXapp] E2 node {} not connected! Skipping...".format(gnb.inventory_name))
                 continue
 
             selected_gnb = gnb
@@ -374,12 +374,12 @@ class xDevSMRMRXapp(RMRXapp, BasexDevSMXapp):
 
         if selected_gnb is None:
             if not e2node_inventory_name:
-                self.logger.info("[xDevSMRMRXapp] No gnb connected")
+                self.logger.debug("[xDevSMRMRXapp] No gnb connected")
             else:
-                self.logger.info("[xDevSMRMRXapp] Passed gnb {} not connected".format(e2node_inventory_name))
+                self.logger.debug("[xDevSMRMRXapp] Passed gnb {} not connected".format(e2node_inventory_name))
             return None, None
         else:
-            self.logger.info("[xDevSMRMRXapp] selected gnb {}".format(gnb.inventory_name))
+            self.logger.debug("[xDevSMRMRXapp] selected gnb {}".format(gnb.inventory_name))
 
         return selected_gnb, gnb_info
 
@@ -411,13 +411,13 @@ class xDevSMRMRXapp(RMRXapp, BasexDevSMXapp):
         self.logger.debug("[xDevSMRMRXapp] Recevied handle message Event")
     
     def send(self, *args, **kwargs):
-        self.logger.info("[xDevSMRMRXapp] Recevied Sending message Event")
+        self.logger.debug("[xDevSMRMRXapp] Recevied Sending message Event")
 
     def get_ran_function_description(self, json_ran_info):
-        self.logger.info("[xDevSMRMRXapp] Recevied get_ran_function_description Event")
+        self.logger.debug("[xDevSMRMRXapp] Recevied get_ran_function_description Event")
     
     def terminate(self, signum, frame):
-        self.logger.info("[xDevSMRMRXapp] Received termination signal")
+        self.logger.debug("[xDevSMRMRXapp] Received termination signal")
         # Publish rec_count and the closing clock pair while the interpreter is
         # still healthy, rather than leaving it to atexit ordering.
         flush_rings()
@@ -426,5 +426,5 @@ class xDevSMRMRXapp(RMRXapp, BasexDevSMXapp):
         if self.shutdown is not None:
             self.shutdown()
         else:
-            self.logger.info("[xDevSMRMRXapp] No shutdown function registered")
-        self.logger.info("[xDevSMRMRXapp] Bye!")
+            self.logger.debug("[xDevSMRMRXapp] No shutdown function registered")
+        self.logger.debug("[xDevSMRMRXapp] Bye!")
