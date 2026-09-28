@@ -1,3 +1,4 @@
+import atexit
 import numpy as np
 import ctypes
 
@@ -14,6 +15,7 @@ import xdevsm.sm_framework.py_oran.rc.RCControlHdr as ctrlhdr
 # utility
 from xdevsm.sm_framework.py_oran.dapp.control.DAppControlAck import decode_control_ack
 from xdevsm.utils.constants import Values
+from xdevsm.utils.ack_route import AckRoute
 from xdevsm._latrec.writer import tls_ring, seq_next, ctx_set, ctx_get
 from xdevsm._latrec import stages
 from xdevsm._latrec.stages import LATREC_ROLE as _LATREC_ROLE
@@ -54,6 +56,10 @@ class xAppControlService(BaseXDevSMWrapper):
 
         # Service Model Wrapper - data encoding for Control Requests
         self.service_model_wrapper = None
+
+        # Control-ack route, set up by add_rmr_rule(): its id goes in every control.
+        self._ack_route = None
+        self._ack_route_warned = False
 
         self.add_rmr_rule()
         self.__control_ack_handler_suc = None
@@ -165,7 +171,16 @@ class xAppControlService(BaseXDevSMWrapper):
                                         control_message=ctrl_msg_byte_array)
         
 
-    def send_control_request_rmr(self, e2_node_id, control_header: bytes, control_message: bytes, call_process_id: bytes=b"1", requestor_id=1, control_ack_request=1, request_sequence_number=0, seq: int = None, retries: int = 100):
+    def send_control_request_rmr(self, e2_node_id, control_header: bytes, control_message: bytes, call_process_id: bytes=b"1", requestor_id=1, control_ack_request=1, request_sequence_number=None, seq: int = None, retries: int = 100):
+
+        # request_sequence_number is the E2AP ricInstanceID, which E2Term routes
+        # the acknowledge by. Left unset, it is this xApp's registered ack-route id.
+        if request_sequence_number is None:
+            request_sequence_number = self._ric_instance_id()
+        elif not 0 <= request_sequence_number <= 65535:
+            self.logger.error(
+                "[xAppControlService] ricInstanceID {} outside 0..65535, sending 0".format(request_sequence_number))
+            request_sequence_number = 0
 
         # send() binds the seq it allocated; called directly, start a fresh one
         # rather than adopting whatever this thread last handled.
@@ -219,7 +234,20 @@ class xAppControlService(BaseXDevSMWrapper):
             # RMR does not take ownership on send; without this the xApp leaks
             # one 4 KiB buffer per control request, for its whole lifetime.
             rmr.rmr_free_msg(sbuf)
-    
+
+    def _ric_instance_id(self):
+        """ricInstanceID for a control: this service's ack-route id, or 0 --
+        rtmgr's shared default route -- until rtmgr has accepted one."""
+        rid = self._ack_route.instance_id if self._ack_route is not None else None
+        if rid is not None:
+            return rid
+        if not self._ack_route_warned:
+            self._ack_route_warned = True
+            self.logger.error(
+                "[xAppControlService] no control-ack route registered yet: sending ricInstanceID 0, "
+                "so acks may be delivered to another xApp")
+        return 0
+
     def _with_meid(self, ack, summary):
         """Attach the sending E2 node's id to a decoded acknowledge.
         """
@@ -277,17 +305,23 @@ class xAppControlService(BaseXDevSMWrapper):
     
     def add_rmr_rule(self):
         """
-        Add RMR rule for control messages
+        Add RMR rule for control messages: register an id of this service's own
+        with rtmgr and send every control with it, so their acks get a route
+        nobody else has (see utils/ack_route.py).
         """
-        # TODO
         self.logger.debug("[xAppControlService] Adding RMR rule for control messages")
-    
+        self._ack_route = AckRoute(self.logger, self.app_namespace, self.xapp_name,
+                                   self.rmr_port, self.pltnamespace)
+        self._ack_route.start()
+        # Not every xApp terminates its control services: remove the id at exit anyway.
+        atexit.register(self._ack_route.stop)
+
     def delete_rmr_rule(self):
         """
-        Delete RMR rule for control messages
+        Delete RMR rule for control messages: remove this service's id from rtmgr.
         """
-        # TODO
         self.logger.debug("[xAppControlService] Deleting RMR rule for control messages")
+        self._ack_route.stop()
     
     ########## Temporary mock functions for UE ID ##########
     def get_mock_du_ue_id(self, ran_ue_id: ctypes.c_uint32) -> kpmmsg.ue_id_e2sm_t:

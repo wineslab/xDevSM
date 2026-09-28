@@ -18,3 +18,5 @@ class Values:
     SUBSCRIPTION_PORT = "8088"
     E2MGR_SERVICE = "e2mgr"
     E2MGR_PORT = "3800"
+    RTMGR_SERVICE = "rtmgr"
+    RTMGR_PORT = "3800"

@@ -23,9 +23,10 @@ and are torn down with it, so no other module sees them.
 ``xDevSMRMRXapp.__init__`` needs a live RMR runtime regardless, so these build
 bare instances the way ``test_report_decode_once.py`` builds its frames.
 
-The last group covers the other direction: ``send_control_request_rmr``
+The last groups cover the other direction: ``send_control_request_rmr``
 allocates a send buffer and RMR does not take ownership on send, so it has to
-free it itself.
+free it itself; and the ricInstanceID it puts in the request, which E2Term
+routes the acknowledge by.
 """
 
 import ctypes
@@ -330,7 +331,7 @@ def control(mod, monkeypatch):
     cmod = importlib.import_module(CONTROL_MODULE)
     monkeypatch.setitem(sys.modules, CONTROL_MODULE, cmod)
 
-    calls = types.SimpleNamespace(sends=[], frees=[], states=[])
+    calls = types.SimpleNamespace(sends=[], frees=[], states=[], encoded=[])
 
     class _Mbuf:
         def __init__(self):
@@ -355,6 +356,7 @@ def control(mod, monkeypatch):
 
     class _Encoded:
         def encode(self, **kwargs):
+            calls.encoded.append(kwargs)
             return 7, b"payload"
 
     monkeypatch.setattr(cmod, "ControlRequestMsg", _Encoded)
@@ -364,6 +366,8 @@ def control(mod, monkeypatch):
             self._mrc = object()
             self.logger = _Logger()
             self.function_id = 255
+            self._ack_route = None
+            self._ack_route_warned = False
 
     return _Bare(), calls
 
@@ -395,3 +399,30 @@ def test_send_control_request_frees_when_every_retry_fails(control):
     assert len(calls.sends) == 10
     assert len(calls.frees) == 1
     assert any("not sent after 10 attempts" in line for line in svc.logger.lines)
+
+
+# --- the ricInstanceID the control request carries ---------------------------------
+
+def test_control_carries_the_ack_route_id(control):
+    """E2Term routes the acknowledge by this id (see utils/ack_route.py)."""
+    svc, calls = control
+    svc._ack_route = types.SimpleNamespace(instance_id=61234)
+    svc.send_control_request_rmr(e2_node_id="gnb", control_header=b"h", control_message=b"m")
+    assert calls.encoded[0]["request_sequence_number"] == 61234
+
+
+def test_control_sends_0_with_one_error_until_the_route_is_registered(control):
+    svc, calls = control
+    svc._ack_route = types.SimpleNamespace(instance_id=None)
+    for _ in range(2):
+        svc.send_control_request_rmr(e2_node_id="gnb", control_header=b"h", control_message=b"m")
+    assert [kw["request_sequence_number"] for kw in calls.encoded] == [0, 0]
+    assert sum("no control-ack route" in line for line in svc.logger.lines) == 1
+
+
+def test_control_never_sends_an_id_outside_the_e2ap_range(control):
+    """The gNB asserts ricInstanceID < 65536: an OAI build aborts on anything else."""
+    svc, calls = control
+    svc.send_control_request_rmr(e2_node_id="gnb", control_header=b"h", control_message=b"m",
+                                 request_sequence_number=70000)
+    assert calls.encoded[0]["request_sequence_number"] == 0
