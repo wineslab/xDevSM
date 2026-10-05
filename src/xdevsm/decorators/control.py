@@ -11,6 +11,7 @@ from ricxappframe.e2ap.asn1 import ControlRequestMsg
 import xdevsm.sm_framework.py_oran.kpm.KpmIndicationMsg as kpmmsg
 import xdevsm.sm_framework.py_oran.rc.RCControlReq as ctrlReq
 import xdevsm.sm_framework.py_oran.rc.RCControlHdr as ctrlhdr
+from xdevsm.sm_framework.py_oran.ByteArray import free as free_byte_array
 
 # utility
 from xdevsm.sm_framework.py_oran.dapp.control.DAppControlAck import decode_control_ack
@@ -158,8 +159,12 @@ class xAppControlService(BaseXDevSMWrapper):
 
         ctrl_req_enc = self.service_model_wrapper.encode()
 
-        hdr_byte_array = ctrl_req_enc.hdr_encoded.to_bytes()
-        ctrl_msg_byte_array = ctrl_req_enc.msg_encoded.to_bytes()
+        try:
+            hdr_byte_array = ctrl_req_enc.hdr_encoded.to_bytes()
+            ctrl_msg_byte_array = ctrl_req_enc.msg_encoded.to_bytes()
+        finally:
+            free_byte_array(ctrl_req_enc.hdr_encoded)
+            free_byte_array(ctrl_req_enc.msg_encoded)
 
         self.logger.debug("[xAppControlService] hdr encoded: {}".format(hdr_byte_array))
         self.logger.debug("[xAppControlService] ctrl encoded: {}".format(ctrl_msg_byte_array))

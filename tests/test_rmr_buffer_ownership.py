@@ -401,6 +401,70 @@ def test_send_control_request_frees_when_every_retry_fails(control):
     assert any("not sent after 10 attempts" in line for line in svc.logger.lines)
 
 
+# --- outbound: the SM-encoded control header and message ---------------------------
+
+class _EncodedBuf:
+    """Stands in for a ByteArray an SM encoder returned; to_bytes() copies it."""
+
+    def __init__(self, data, fail=False):
+        self.data = data
+        self.fail = fail
+
+    def to_bytes(self):
+        if self.fail:
+            raise RuntimeError("copy failed")
+        return self.data
+
+
+def _ran_func_dsc(style_name):
+    """A decoded RAN function definition advertising one control style."""
+    raw = style_name.encode()
+    buf = (ctypes.c_uint8 * len(raw)).from_buffer_copy(raw)
+    name = types.SimpleNamespace(buf=ctypes.cast(buf, ctypes.POINTER(ctypes.c_uint8)),
+                                 len=len(raw), keepalive=buf)
+    ctrl = types.SimpleNamespace(seq_ctrl_style=[types.SimpleNamespace(name=name)],
+                                 sz_seq_ctrl_style=1)
+    return types.SimpleNamespace(ctrl=types.SimpleNamespace(contents=ctrl))
+
+
+@pytest.fixture
+def encoded_control(control, monkeypatch):
+    """`control` driven through send(), recording what free_byte_array releases."""
+    svc, calls = control
+    calls.encoded_freed = []
+    monkeypatch.setattr(sys.modules[CONTROL_MODULE], "free_byte_array",
+                        calls.encoded_freed.append)
+    svc.service_style_name = "STYLE"
+    return svc, calls
+
+
+def _encoding_to(svc, hdr, msg):
+    svc.service_model_wrapper = types.SimpleNamespace(
+        encode=lambda: types.SimpleNamespace(hdr_encoded=hdr, msg_encoded=msg))
+
+
+def test_send_frees_both_sm_encoded_buffers(encoded_control):
+    """The E2SM-DAPP and E2SM-RC encoders return malloc'd buffers (16 KiB each for
+    the dApp header and message): without the free every control leaked them."""
+    svc, calls = encoded_control
+    hdr, msg = _EncodedBuf(b"hdr"), _EncodedBuf(b"msg")
+    _encoding_to(svc, hdr, msg)
+    svc.send(e2_node_id="gnb", ran_func_dsc=_ran_func_dsc("STYLE"))
+    assert calls.encoded[0]["control_header"] == b"hdr"
+    assert calls.encoded[0]["control_message"] == b"msg"
+    assert calls.encoded_freed == [hdr, msg]
+
+
+def test_send_frees_both_sm_encoded_buffers_when_the_copy_fails(encoded_control):
+    svc, calls = encoded_control
+    hdr, msg = _EncodedBuf(b"hdr"), _EncodedBuf(b"msg", fail=True)
+    _encoding_to(svc, hdr, msg)
+    with pytest.raises(RuntimeError):
+        svc.send(e2_node_id="gnb", ran_func_dsc=_ran_func_dsc("STYLE"))
+    assert calls.encoded_freed == [hdr, msg]
+    assert calls.sends == []
+
+
 # --- the ricInstanceID the control request carries ---------------------------------
 
 def test_control_carries_the_ack_route_id(control):

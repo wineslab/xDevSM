@@ -35,6 +35,34 @@ def test_dapp_modules_bind_native_symbols():
 
 
 @requires_native
+def test_control_req_encoded_buffers_are_caller_owned():
+    """encode() returns two malloc'd buffers the caller must release (decorators/control.py
+    does, through ByteArray.free); freeing them leaves later encodes intact."""
+    import ctypes
+    from xdevsm.sm_framework.py_oran.ByteArray import ByteArray, free
+    from xdevsm.sm_framework.py_oran.dapp.control.DAppControlReq import (
+        DAppControlReqWrapper,
+    )
+
+    raw = bytes(range(16))
+    buf = (ctypes.c_uint8 * len(raw)).from_buffer_copy(raw)
+    payload = ByteArray(len(raw), ctypes.cast(buf, ctypes.POINTER(ctypes.c_uint8)))
+    wrapper = DAppControlReqWrapper()
+    wrapper.generate_control_req_frmt_1(ran_function_id=150, dapp_id=1, payload=payload,
+                                        sequence_id=7)
+
+    encoded = []
+    for _ in range(3):
+        enc = wrapper.encode()
+        encoded.append((enc.hdr_encoded.to_bytes(), enc.msg_encoded.to_bytes()))
+        free(enc.hdr_encoded)
+        free(enc.msg_encoded)
+
+    assert all(hdr and msg for hdr, msg in encoded)
+    assert encoded.count(encoded[0]) == len(encoded)
+
+
+@requires_native
 def test_spectrum_report_struct_matches_the_shipped_library():
     """The ctypes mirror must match libdapp_sm.so's spectrum_sm_report_t.
 
