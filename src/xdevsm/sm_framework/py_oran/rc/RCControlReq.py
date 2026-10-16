@@ -105,6 +105,11 @@ ho_ids = {
     "Secondary Cell ID": 21
 }
 
+def nr_cgi_bytes(plmn_identity: str, nr_cell_id: str) -> bytes:
+    """NR CGI octets: the PLMN identity, then the 36-bit NR Cell Identity left-aligned in 5
+    octets (TS 38.413 9.3.1.7), the way the gNB decodes it. ``nr_cell_id`` is a bit string."""
+    return bytes.fromhex(plmn_identity) + (int(nr_cell_id.zfill(36), 2) << 4).to_bytes(5, byteorder='big')
+
 class RCControlReq(ctypes.Structure):
     _fields_ = [
         ("hdr", hdr.RCControlHdr),
@@ -425,15 +430,7 @@ class RCControlReqWrapper():
         param_name = param_name_bytes.decode('utf-8')
         print("Setting Parameter: {}".format(param_name))
 
-        PLMN = plmn_identity
-        PLMN_bytes = bytes.fromhex(PLMN)
-
-        nr_cell_id = nr_cell_id
-        nr_cell_id = nr_cell_id.zfill(36) # It should be 36 bits long (TS 138 423 Section 9.2.2.7)
-        nr_cell_id_int = int(nr_cell_id, 2)
-        nr_cell_id_bytes = nr_cell_id_int.to_bytes(5, byteorder='big')  # 5 bytes for the NR Cell ID
-
-        nrcgi_bytes = PLMN_bytes + nr_cell_id_bytes
+        nrcgi_bytes = nr_cgi_bytes(plmn_identity, nr_cell_id)
         NRCGI = ByteArray()
         NRCGI.len = len(nrcgi_bytes)
         NRCGI.buf = (ctypes.c_uint8 * NRCGI.len)(*nrcgi_bytes)

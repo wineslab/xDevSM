@@ -38,3 +38,13 @@ def test_rc_report_helpers_bound_in_shipped_library():
 
     assert rc_report_codec._LIB_ERR is None, rc_report_codec._LIB_ERR
     assert rc_report_codec._report_lib is not None
+
+
+@requires_native
+def test_nr_cgi_left_aligns_the_nr_cell_identity():
+    """The gNB reads the 36-bit NR Cell Identity from the top of the last 5 octets."""
+    from xdevsm.sm_framework.py_oran.rc.RCControlReq import nr_cgi_bytes
+
+    cgi = nr_cgi_bytes("00f110", bin(12345)[2:])
+    assert cgi == bytes.fromhex("00f110") + bytes.fromhex("0000030390")
+    assert int.from_bytes(cgi[3:], "big") >> 4 == 12345
