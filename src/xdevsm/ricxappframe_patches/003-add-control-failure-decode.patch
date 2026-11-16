@@ -1,0 +1,103 @@
+--- a/ricxappframe/e2ap/asn1.py
++++ b/ricxappframe/e2ap/asn1.py
+@@ -404,6 +404,59 @@
+         return size, bytes(buf)
+ 
+ 
++# Imported here, not in the import block at the top: patch 002 edits that line.
++from ricxappframe.e2ap.asn1clib.types import control_failure_msg_t  # noqa: E402
++
++_asn1_decode_controlFailureMsg = _wrap_asn1_function(
++    'e2ap_decode_ric_control_failure_message', POINTER(control_failure_msg_t), [c_void_p, c_ulong])
++_asn1_free_controlFailureMsg = _wrap_asn1_function(
++    'e2ap_free_decoded_ric_control_failure', c_void_p, [POINTER(control_failure_msg_t)])
++
++
++class ControlFailureMsg:
++    """
++    A class that parses the payload of an e2ap RICControlFailure message.
++
++    `cause_type` and `cause_value` are the E2AP Cause choice and its value.
++    As in ControlAckMsg, `control_outcome` is opaque here and is decoded by
++    whichever Service Model issued the control request.
++    """
++
++    __slots__ = ('request_id', 'instance_id', 'function_id', 'call_process_id',
++                 'control_outcome', 'cause_type', 'cause_value')
++
++    def __init__(self):
++        self.request_id = -1
++        self.instance_id = -1
++        self.function_id = -1
++        self.call_process_id = b''
++        self.control_outcome = b''
++        self.cause_type = 0
++        self.cause_value = -1
++
++    def decode(self, payload: bytes):
++        """
++        Set the fields from the bytes of a RICControlFailure received via rmr.
++
++        Raise Exception when payload is not RICControlFailure.
++        """
++        # len, not getsizeof: getsizeof also counts the bytes object header
++        failure = _asn1_decode_controlFailureMsg(payload, len(payload))
++        if not failure:
++            raise Exception("Payload is not matched with RICControlFailure")
++        msg = failure.contents
++        self.request_id = msg.request_id
++        self.instance_id = msg.instance_id
++        self.function_id = msg.function_id
++        if msg.call_process_id and msg.call_process_id_length:
++            self.call_process_id = bytes(msg.call_process_id[:msg.call_process_id_length])
++        if msg.control_outcome and msg.control_outcome_length:
++            self.control_outcome = bytes(msg.control_outcome[:msg.control_outcome_length])
++        self.cause_type = msg.cause_type
++        self.cause_value = msg.cause_value
++        _asn1_free_controlFailureMsg(failure)
++
++
+ _asn1_encode_controlReqMsg = _wrap_asn1_function('e2ap_encode_ric_control_request_message', c_ssize_t, [
+                                                  c_void_p, c_size_t, c_long, c_long, c_long, c_void_p, c_size_t, c_void_p, c_size_t, c_void_p, c_size_t, c_long])
+ 
+--- a/ricxappframe/e2ap/asn1clib/types.py
++++ b/ricxappframe/e2ap/asn1clib/types.py
+@@ -136,6 +136,38 @@
+     ]
+ 
+ 
++class control_failure_msg_t(Structure):
++    """
++    A class that mirrored E2AP's RICControlFailure with python
++
++    c-type struct of RICControlFailure
++    ---------------------------------------
++    typedef struct RICControlFailureMsg {
++        long requestorID;
++        long instanceID;
++        long ranfunctionID;
++        uint8_t *callProcessID;
++        size_t callProcessIDSize;
++        uint8_t *ricControlOutCome;
++        size_t ricControlOutComeSize;
++        int     causeType;
++        long    causeValue;
++    } RICControlFailure;
++    ---------------------------------------
++    """
++    _fields_ = [
++        ("request_id", c_long),
++        ("instance_id", c_long),
++        ("function_id", c_long),
++        ("call_process_id", POINTER(c_uint8)),
++        ("call_process_id_length", c_size_t),
++        ("control_outcome", POINTER(c_uint8)),
++        ("control_outcome_length", c_size_t),
++        ("cause_type", c_int),
++        ("cause_value", c_long),
++    ]
++
++
+ class ric_action_definition_t(Structure):
+     """
+     A class that mirrored E2AP's RICactionDefinition with python

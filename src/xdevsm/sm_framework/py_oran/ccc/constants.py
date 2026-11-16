@@ -2,6 +2,8 @@
 SM_CCC_ID = 149
 
 SM_CCC_OID = "1.3.6.1.4.1.53148.1.1.2.4"
+# OCUDU announces E2SM-CCC under this OID.
+SM_CCC_OID_OCUDU = "1.3.6.1.4.1.53148.1.6.2.4"
 SM_CCC_NAME = "ORAN-E2SM-CCC"
 
 # RIC Service Styles (§7.4)
@@ -33,3 +35,13 @@ REPORT_TYPE_CHANGE = "change"
 STRUCT_O_NRCELLDU = "O-NRCellDU"
 STRUCT_O_NRCELLCU = "O-NRCellCU"
 STRUCT_O_BWP      = "O-BWP"
+
+# RIC Control styles (§7.5)
+CONTROL_STYLE_CELL_LEVEL = 2
+
+# Cell-level RAN Configuration Structure for RRM policy control.
+STRUCT_O_RRM_POLICY_RATIO = "O-RRMPolicyRatio"
+
+# O-RRMPolicyRatio resourceType values.
+RESOURCE_TYPE_PRB_DL = "PRB_DL"
+RESOURCE_TYPE_PRB_UL = "PRB_UL"

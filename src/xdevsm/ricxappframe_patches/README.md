@@ -57,6 +57,36 @@ No new shared library is involved: `libriclibe2ap.so` is the same object
 `ricxappframe` already loads in `asn1clib.py`, and these symbols resolve
 through its existing handle.
 
+### 003-add-control-failure-decode.patch
+
+Adds `ControlFailureMsg` to `ricxappframe.e2ap.asn1` and
+`control_failure_msg_t` to `ricxappframe.e2ap.asn1clib.types`, the
+RICControlFailure counterpart of 002, binding:
+
+- `e2ap_decode_ric_control_failure_message`
+- `e2ap_free_decoded_ric_control_failure`
+
+Besides the fields of `ControlAckMsg` it has `cause_type` and `cause_value`,
+the E2AP Cause choice and its value. Its hunks stay clear of 002's, so the
+already-applied check of each patch still works on a rerun.
+
+Needs riclibe2ap with the fixed failure decoder: an older one returns no
+`control_outcome` and a wrong cause.
+
+### 004-size-control-request-buffer.patch
+
+`ControlRequestMsg.encode()` encoded into a fixed 1024-byte buffer, so a
+larger control failed with "Could not create payload." (an E2SM-CCC control
+for two or more slices), and it returned the whole buffer, so every control
+went out as 1024 bytes with zeros after the PDU. E2AP sets no size limit on
+the RIC Control Message.
+
+The buffer now holds the call process ID, header and message plus 1024 bytes
+for the E2AP framing, and `encode()` returns the PDU only, with its length in
+bytes. The encoder in riclibe2ap returns a bit count, which upstream passed
+on as the length. The `return` line stays as it is, because 002 uses it as
+context.
+
 ## Regenerating a patch
 
 ```sh

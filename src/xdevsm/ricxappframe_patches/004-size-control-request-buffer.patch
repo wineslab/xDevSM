@@ -1,0 +1,18 @@
+--- a/ricxappframe/e2ap/asn1.py
++++ b/ricxappframe/e2ap/asn1.py
+@@ -509,9 +509,13 @@
+         for idx in range(len(control_message)):
+             call_message_buffer[idx] = c_uint8(control_message[idx])
+ 
+-        buf = ARRAY(c_uint8, 1024)()
+-        size: int = _asn1_encode_controlReqMsg(buf, c_size_t(1024), c_long(requestor_id), c_long(request_sequence_number), c_long(ran_function_id), call_process_id_buffer, c_size_t(
++        # The octet strings plus 1024 bytes (the whole buffer upstream) for the E2AP framing.
++        buf = ARRAY(c_uint8, len(call_process_id) + len(control_header) + len(control_message) + 1024)()
++        size: int = _asn1_encode_controlReqMsg(buf, c_size_t(len(buf)), c_long(requestor_id), c_long(request_sequence_number), c_long(ran_function_id), call_process_id_buffer, c_size_t(
+             len(call_process_id_buffer)), call_header_buffer, c_size_t(len(call_header_buffer)), call_message_buffer, c_size_t(len(call_message_buffer)), c_long(control_ack_request))
++        if size >= 0:  # the encoder returns bits: keep the bytes of the PDU, not the whole buffer
++            size = (size + 7) // 8
++            buf = buf[:size]
+         if size < 0:
+             raise Exception("Could not create payload.")
+ 

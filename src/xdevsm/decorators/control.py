@@ -14,7 +14,6 @@ import xdevsm.sm_framework.py_oran.rc.RCControlHdr as ctrlhdr
 from xdevsm.sm_framework.py_oran.ByteArray import free as free_byte_array
 
 # utility
-from xdevsm.sm_framework.py_oran.dapp.control.DAppControlAck import decode_control_ack
 from xdevsm.utils.constants import Values
 from xdevsm.utils.ack_route import AckRoute
 from xdevsm._latrec.writer import tls_ring, seq_next, ctx_set, ctx_get
@@ -273,6 +272,12 @@ class xAppControlService(BaseXDevSMWrapper):
                 % type(ack).__name__)
         return ack
 
+    def _decode_ack(self, pdu):
+        """Decode an acknowledge PDU into the Service Model's own type for the callbacks, None if it does not decode.
+        Each Service Model overrides this with its own outcome decoder (DAppPrbMaskControl, CccRrmPolicyRatioControl).
+        The default decodes nothing, so the callbacks receive the RMR summary."""
+        return None
+
     def _handle_control_ack_suc(self, xapp, summary, sbuf):
         self.logger.debug("[xAppControlService] Handling control ack - default implementation")
         if not self.__control_ack_handler_suc:
@@ -282,7 +287,7 @@ class xAppControlService(BaseXDevSMWrapper):
         # not decode falls back to the raw RMR summary, so a handler written
         # before this existed keeps working; check `is not None` rather than
         # assuming a type.
-        ack = decode_control_ack(summary.get(rmr.RMR_MS_PAYLOAD))
+        ack = self._decode_ack(summary.get(rmr.RMR_MS_PAYLOAD))
         ack = self._with_meid(ack, summary)
         self.__control_ack_handler_suc(ack if ack is not None else summary)
 
@@ -290,7 +295,7 @@ class xAppControlService(BaseXDevSMWrapper):
         self.logger.debug("[xAppControlService] Handling control failure ack - default implementation")
         if not self.__control_ack_handler_fail:
             return
-        ack = decode_control_ack(summary.get(rmr.RMR_MS_PAYLOAD))
+        ack = self._decode_ack(summary.get(rmr.RMR_MS_PAYLOAD))
         ack = self._with_meid(ack, summary)
         self.__control_ack_handler_fail(ack if ack is not None else summary)
     

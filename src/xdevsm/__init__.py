@@ -23,6 +23,7 @@ _LAZY = {
     "BaseXDevSMWrapper": "xdevsm.decorators.base:BaseXDevSMWrapper",
     "XappKpmFrame": "xdevsm.decorators.kpm.kpm_frame:XappKpmFrame",
     "XappCccFrame": "xdevsm.decorators.ccc.ccc_frame:XappCccFrame",
+    "CccRrmPolicyRatioControl": "xdevsm.decorators.ccc.ccc_rrm_policy_control:CccRrmPolicyRatioControl",
     "XappRcReportFrame": "xdevsm.decorators.rc.rc_report_frame:XappRcReportFrame",
     "RadioBearerControl": "xdevsm.decorators.rc.rc_radio_bearer_control:RadioBearerControl",
     "RadioResourceAllocationControl": "xdevsm.decorators.rc.rc_radio_resource_alloc_control:RadioResourceAllocationControl",

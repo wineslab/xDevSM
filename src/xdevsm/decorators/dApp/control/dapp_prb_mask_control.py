@@ -4,6 +4,7 @@ from xdevsm.decorators.control import xAppControlService
 # xDevSM sm framework
 from xdevsm.sm_framework.py_oran.ByteArray import ByteArray
 from xdevsm.sm_framework.py_oran.dapp.control.DAppControlReq import DAppControlReqWrapper 
+from xdevsm.sm_framework.py_oran.dapp.control.DAppControlAck import decode_control_ack
 from xdevsm.sm_framework.py_oran.dapp.e3.DAppE3CtrlPayload import DAppE3CtrlPayloadWrapper
 import xdevsm.sm_framework.py_oran.dapp.report.DAppFunctionDef as dappfuncdef
 from xdevsm.sm_framework.py_oran.dapp.enums import dapp_e3_sm_type_e
@@ -64,6 +65,8 @@ class DAppPrbMaskControl(xAppControlService):
         # handle should be done based on the control message type, not supported for dApps
         super().handle(xapp, summary, sbuf)
     
+    def _decode_ack(self, pdu):
+        return decode_control_ack(pdu)
 
     def generate_control_request(self, ue_id_struct=None, control_action_id=1):
         # TODO do we need any check on the action id?

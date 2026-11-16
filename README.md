@@ -24,6 +24,7 @@ The architecture separates three main layers:
 | **KPM (Key Performance Measurement)** | Measurement Actions | • Common Condition-based Measurement, UE-level Measurement |
 | **RC (RAN Control)** | Control Actions | • QoS Flow Mapping Configuration<br>• Slice-level PRB Quota Action (only monolithic gNBs)<br>• Connected Mode Mobility Control |
 | **CCC (Cell Configuration and Control)** | Report Actions | • Cell-level RAN Configuration Reporting (REPORT Style 2, periodic event trigger) — e.g. `O-NRCellDU` attributes |
+| **CCC (Cell Configuration and Control)** | Control Actions | • Cell-level `O-RRMPolicyRatio` control (CONTROL Style 2): per-slice min, max, and dedicated PRB ratios, tested on OCUDU |
 ---
 
 ## Installation
@@ -233,6 +234,41 @@ ccc_xapp.subscribe_arfcn_bw_bwps(gnb=selected_gnb, ran_period_ms=1000)
 ```
 
 > ℹ️ The indication callback signature is `handler(ind_hdr, ind_msg, meid, sub_id)`. Iterate the reported cells/structures with `ind_msg.cells()` / `ind_msg.iter_structures()`.
+
+### CccRrmPolicyRatioControl
+
+`CccRrmPolicyRatioControl` sends the E2SM-CCC cell-level control (CONTROL Style 2, Header Format 1, Message Format 2) for the `O-RRMPolicyRatio` structure. It sets the PRB share of a slice in one cell, so it needs no UE ID. It extends `xAppControlService` and uses `send_policies()` instead of `send()`, because the JSON encoding has no ASN.1 function definition.
+
+* `find_ccc_function_id(json_ran_info)` returns the CCC RAN function ID from the e2mgr information of the E2 node. It accepts the OID `1.3.6.1.4.1.53148.1.1.2.4` and the OID `1.3.6.1.4.1.53148.1.6.2.4` that OCUDU announces.
+* `send_policies()` checks every slice, then sends all slices in one control, so the cell applies them together. A control for two or more slices is larger than 1 KB and needs the xDevSM ricxappframe patches (patch 004).
+* Each slice needs `dedicated_ratio <= min_ratio <= max_ratio`, and the `min_ratio` of the slices in one call must sum to at most 100 (TS 28.541). `dedicated_ratio` defaults to 0.
+* The Old Values of each slice carry its resource type and member, so the E2 node can find the policy to change. They leave out the old ratios, which the xApp does not read.
+* Known OCUDU limits: it reads `rRMPolicyDedicatedRatio` 0 as missing and fails the control (pass `dedicated_ratio=1` or more), and it applies only the min and max ratios, only to slices in `cell_cfg: slicing`.
+* The callbacks of `register_control_ack_suc_callback()` and `register_control_ack_fail_callback()` receive a `CccControlAck` for a RIC Control Acknowledge or Failure. Its `outcome` is a `CccControlOutcome`, the JSON E2SM-CCC Control Outcome of the message. `outcome.structures()` lists each structure with `applied`, its `applied_values` (the currentValuesOfAttributes) or its `failure_reason`. A failure also carries `cause`, the E2AP Cause as (choice, value). A message that does not decode reaches the callback as the RMR summary. Decoding needs the xDevSM ricxappframe patches (`python -m xdevsm.ricxappframe_patches`).
+
+```python
+from xdevsm import CccRrmPolicyRatioControl
+from xdevsm.sm_framework.py_oran.ccc.ccc_decoder import find_ccc_function_id
+from xdevsm.sm_framework.py_oran.ccc.ccc_encoder import RrmPolicySlice
+
+gnb, gnb_info = xapp_gen.get_selected_e2node_info(None)
+ctrl = CccRrmPolicyRatioControl(xapp_gen,
+                                logger=xapp_gen.logger,
+                                server=xapp_gen.server,
+                                xapp_name=xapp_gen.get_xapp_name(),
+                                rmr_port=xapp_gen.rmr_port,
+                                http_port=xapp_gen.http_port,
+                                mrc=xapp_gen._mrc,
+                                pltnamespace=xapp_gen.get_pltnamespace(),
+                                app_namespace=xapp_gen.get_app_namespace(),
+                                mcc="001", mnc="01",
+                                nci=0x3954000,  # 36-bit NR Cell Identity
+                                function_id=find_ccc_function_id(gnb_info))
+xapp_gen.register_handler(ctrl.handle)
+ctrl.send_policies(gnb.inventory_name,
+                   [RrmPolicySlice(sst=1, sd="000001", min_ratio=1, max_ratio=10, dedicated_ratio=1)],
+                   resource_type="PRB_DL")
+```
 
 ---
 ## 7. xAppReportService
