@@ -86,7 +86,9 @@ jobs:
     name: PR head installs and tests
     needs: changes
     if: github.event_name == 'pull_request' && needs.changes.outputs.code == 'true'
-    runs-on: ubuntu-latest
+    # Not ubuntu-latest: from 26.04 (glibc >= 2.41) dlopen refuses the bundled SM libraries, which
+    # need an executable stack. shortcut: pinned to 24.04 until the libraries are rebuilt without it.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
         with:
